@@ -4,7 +4,7 @@
 #                                                                                                       %
 #       Email:      nguyenthieu2102@gmail.com                                                           %
 #       Homepage:   https://www.researchgate.net/profile/Thieu_Nguyen6                                  %
-#       Github:     https://github.com/thieu1995                                                  %
+#       Github:     https://github.com/thieu1995                                                        %
 #-------------------------------------------------------------------------------------------------------%
 
 from numpy import array, floor, min, max, where
@@ -23,13 +23,15 @@ class BaseFBIO(Root):
         + Change the flow of algorithm
     """
 
-    def __init__(self, obj_func=None, lb=None, ub=None, problem_size=50, batch_size=10, verbose=True, epoch=750, pop_size=100):
-        Root.__init__(self, obj_func, lb, ub, problem_size, batch_size, verbose)
+    def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100, **kwargs):
+        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
 
     def probability(self, list_fitness=None):  # Eq.(3) in FBI Inspired Meta-Optimization
-        prob = (max(list_fitness) - list_fitness) / (max(list_fitness) - min(list_fitness))
+        max1 = max(list_fitness)
+        min1 = min(list_fitness)
+        prob = (max1 - list_fitness) / (max1 - min1 + self.EPSILON)
         return prob
 
     def train(self):
@@ -116,8 +118,8 @@ class OriginalFBIO(BaseFBIO):
         Matlab code: https://ww2.mathworks.cn/matlabcentral/fileexchange/76299-forensic-based-investigation-algorithm-fbi
     """
 
-    def __init__(self, obj_func=None, lb=None, ub=None, problem_size=50, batch_size=10, verbose=True, epoch=750, pop_size=100):
-        BaseFBIO.__init__(self, obj_func, lb, ub, problem_size, batch_size, verbose, epoch, pop_size)
+    def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100, **kwargs):
+        BaseFBIO.__init__(self, obj_func, lb, ub, verbose, epoch, pop_size, kwargs=kwargs)
 
     def train(self):
         pop = [self.create_solution() for _ in range(self.pop_size)]

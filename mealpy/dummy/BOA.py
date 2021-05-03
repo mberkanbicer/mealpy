@@ -4,8 +4,8 @@
 #                                                                                                       %
 #       Email:      nguyenthieu2102@gmail.com                                                           %
 #       Homepage:   https://www.researchgate.net/profile/Thieu_Nguyen6                                  %
-#       Github:     https://github.com/thieu1995                                                  %
-# -------------------------------------------------------------------------------------------------------%
+#       Github:     https://github.com/thieu1995                                                        %
+# ------------------------------------------------------------------------------------------------------%
 
 from numpy.random import uniform, randint
 from numpy import zeros
@@ -19,9 +19,9 @@ class BaseBOA(Root):
         Butterfly optimization algorithm: a novel approach for global optimization
     """
 
-    def __init__(self, obj_func=None, lb=None, ub=None, problem_size=50, batch_size=10, verbose=True,
-                 epoch=700, pop_size=50, c=0.01, p=0.8, alpha=(0.1, 0.3)):
-        Root.__init__(self, obj_func, lb, ub, problem_size, batch_size, verbose)
+    def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100,
+                 c=0.01, p=0.8, alpha=(0.1, 0.3), **kwargs):
+        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
         self.c = c              # 0.01, is the sensory modality
@@ -62,7 +62,7 @@ class OriginalBOA(Root):
         The original version of: Butterfly Optimization Algorithm (BOA)
             (Butterfly optimization algorithm: a novel approach for global optimization)
         Notes:
-            + This algorithm and paper is fake.
+            + This algorithm and paper is dummy.
             + This is the code of the original author of BOA. He public on mathworks. But take a look at his code and his paper. That is completely different.
             + I implement this version based on his paper, it can't converge at all.
         https://www.mathworks.com/matlabcentral/fileexchange/68209-butterfly-optimization-algorithm-boa
@@ -71,9 +71,9 @@ class OriginalBOA(Root):
         "Honestly,this algorithm looks like Flower Pollination Algorithm developed by Yang."
     """
 
-    def __init__(self, obj_func=None, lb=None, ub=None, problem_size=50, batch_size=10, verbose=True,
-                 epoch=700, pop_size=50, c=0.01, p=0.8, alpha=(0.1, 0.3)):
-        Root.__init__(self, obj_func, lb, ub, problem_size, batch_size, verbose)
+    def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100,
+                 c=0.01, p=0.8, alpha=(0.1, 0.3), **kwargs):
+        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
         self.c = c                  # 0.01, is the sensory modality
@@ -128,12 +128,13 @@ class AdaptiveBOA(OriginalBOA):
     How the hell that happened?
     This is a plagiarism? I think this is one of the most biggest reason why mathematician researchers calling out
         meta-heuristics community is completely bullshit and unethical.
-    Just for producing more trash paper without any knowledge in it? This is why I listed BOA as the totally trash and fake
+    Just for producing more trash paper without any knowledge in it? This is why I listed BOA as the totally trash and dummy
     """
 
-    def __init__(self, obj_func=None, lb=None, ub=None, problem_size=50, batch_size=10, verbose=True,
-                 epoch=700, pop_size=50, c=0.01, p=0.8, alpha=(0.1, 0.3)):
-        OriginalBOA.__init__(self, obj_func, lb, ub, problem_size, batch_size, verbose, epoch, pop_size, c, p, alpha)
+    def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100,
+                 c=0.01, p=0.8, alpha=(0.1, 0.3), **kwargs):
+        OriginalBOA.__init__(self, obj_func, lb, ub, verbose, epoch, pop_size, c, p, alpha, kwargs = kwargs)
+
 
     def train(self):
         pop = [self.create_solution() for _ in range(self.pop_size)]
