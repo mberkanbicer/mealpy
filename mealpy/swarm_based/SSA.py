@@ -18,6 +18,8 @@ class BaseSSA(Root):
     """
         My modified version of: Social Spider Algorithm (SSA)
             (A social spider algorithm for global optimization)
+        Link:
+            https://doi.org/10.1016/j.asoc.2015.02.014
         Notes:
             + Uses batch-size idea
             + Changes the idea of intensity, which one has better intensity, others will move toward to it
@@ -31,7 +33,7 @@ class BaseSSA(Root):
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100,
                  r_a=1, p_c=0.7, p_m=0.1, **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
         self.r_a = r_a          # the rate of vibration attenuation when propagating over the spider web.
@@ -123,7 +125,7 @@ class OriginalSSA(Root):
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100,
                  r_a=1, p_c=0.7, p_m=0.1, **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
         self.r_a = r_a     # the rate of vibration attenuation when propagating over the spider web.

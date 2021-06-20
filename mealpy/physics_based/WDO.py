@@ -16,11 +16,13 @@ class BaseWDO(Root):
     """
     The original version of : Wind Driven Optimization (WDO)
         The Wind Driven Optimization Technique and its Application in Electromagnetics
+    Link:
+        https://ieeexplore.ieee.org/abstract/document/6407788
     """
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100,
                  RT=3, g=0.2, alp=0.4, c=0.4, max_v=0.3, **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
         self.RT = RT                # RT coefficient

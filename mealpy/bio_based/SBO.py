@@ -17,6 +17,8 @@ class BaseSBO(Root):
     """
     My version of: Satin Bowerbird Optimizer (SBO)
         A new optimization algorithm to optimize ANFIS for software development effort estimation
+    Link:
+        https://doi.org/10.1016/j.engappai.2017.01.006
     Notes:
         + Remove all third loop, n-times faster than original
         + No need equation (1, 2) in the paper, calculate probability by roulette-wheel. Also can handle negative values
@@ -25,7 +27,7 @@ class BaseSBO(Root):
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100,
                  alpha=0.94, pm=0.05, z=0.02, **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
         self.alpha = alpha          # the greatest step size
@@ -81,7 +83,7 @@ class OriginalSBO(Root):
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100,
                  alpha=0.94, pm=0.05, z=0.02, **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
         self.alpha = alpha              # the greatest step size

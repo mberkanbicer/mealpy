@@ -17,6 +17,9 @@ from mealpy.root import Root
 class BaseCSO(Root):
     """
         The original version of: Cat Swarm Optimization (CSO)
+        Link:
+            https://link.springer.com/chapter/10.1007/978-3-540-36668-3_94
+            https://www.hindawi.com/journals/cin/2020/4854895/
     """
     ID_POS = 0      # position of the cat
     ID_FIT = 1      # fitness
@@ -35,7 +38,7 @@ class BaseCSO(Root):
         # c1 - same in PSO
         # selected_strategy : 0: best fitness, 1: tournament, 2: roulette wheel, else: random  (decrease by quality)
         """
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs=kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch =  epoch
         self.pop_size = pop_size
         self.mixture_ratio = mixture_ratio

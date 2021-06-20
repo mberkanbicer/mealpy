@@ -15,15 +15,17 @@ from mealpy.root import Root
 
 class BaseTWO(Root):
     """
-    The original version of: Tug of War Optimization
+    The original version of: Tug of War Optimization (TWO)
         A novel meta-heuristic algorithm: tug of war optimization
+    Link:
+        https://www.researchgate.net/publication/332088054_Tug_of_War_Optimization_Algorithm
     """
     ID_POS = 0
     ID_FIT = 1
     ID_WEIGHT = 2
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100, **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
 

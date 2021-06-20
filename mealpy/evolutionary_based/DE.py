@@ -20,7 +20,7 @@ class BaseDE(Root):
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100,
                  wf=0.8, cr=0.9, **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
         self.weighting_factor = wf
@@ -80,7 +80,7 @@ class DESAP(Root):
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100,
                  wf=0.8, cr=0.9, F=1, branch="ABS", **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
         self.weighting_factor = wf
@@ -133,7 +133,7 @@ class DESAP(Root):
                     elif self.branch == "REL":
                         ps_new = pop[idxs[0]][self.ID_PS] + self.F * (pop[idxs[1]][self.ID_PS] - pop[idxs[2]][self.ID_PS])
                     pos_new = self.amend_position_faster(pos_new)
-                    fit_new = self.get_fitness_solution(pos_new)
+                    fit_new = self.get_fitness_position(pos_new)
                     cr_new = self.edit_to_range(cr_new, 0, 1, random)
                     mr_new = self.edit_to_range(mr_new, 0, 1, random)
                     sol_new = [pos_new, fit_new, cr_new, mr_new, ps_new]
@@ -148,7 +148,7 @@ class DESAP(Root):
                     elif self.branch == "REL":
                         ps_new = pop[i][self.ID_PS] + normal(0, pop[idxs[0]][self.ID_MR])
                     pos_new = self.amend_position_faster(pos_new)
-                    fit_new = self.get_fitness_solution(pos_new)
+                    fit_new = self.get_fitness_position(pos_new)
                     sol_new = [pos_new, fit_new, cr_new, mr_new, ps_new]
                 pop[i] = deepcopy(sol_new)
 

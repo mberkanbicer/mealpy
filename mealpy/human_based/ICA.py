@@ -16,13 +16,15 @@ from mealpy.root import Root
 class BaseICA(Root):
     """
         The original version of: Imperialist Competitive Algorithm (ICA)
+        Link:
+            https://ieeexplore.ieee.org/document/4425083
     """
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100,
                  empire_count=5, selection_pressure=1, assimilation_coeff=1.5,
                  revolution_prob=0.05, revolution_rate=0.1, revolution_step_size=0.1,
                  revolution_step_size_damp=0.99, zeta=0.1, **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size  # n: pop_size, m: clusters
         self.empire_count = empire_count                # Number of Empires (also Imperialists)

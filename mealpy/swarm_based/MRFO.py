@@ -16,10 +16,12 @@ class BaseMRFO(Root):
     """
     The original version of: Manta Ray Foraging Optimization (MRFO)
         (Manta ray foraging optimization: An effective bio-inspired optimizer for engineering applications)
+    Link:
+        https://doi.org/10.1016/j.engappai.2019.103300
     """
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100, S=2, **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
         self.S = S                   # somersault factor that decides the somersault range of manta rays

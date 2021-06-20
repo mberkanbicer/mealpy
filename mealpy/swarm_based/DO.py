@@ -16,13 +16,13 @@ from mealpy.root import Root
 
 class BaseDO(Root):
     """
-    The original version of: Dragonfly Optimization
-        This version is converted from Matlab code of Hoang Nguyen (nguyenhoang.mdc@gmail.com)
+    The original version of: Dragonfly Optimization (DO)
     Link:
+        https://link.springer.com/article/10.1007/s00521-015-1920-1
     """
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100, **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs=kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
 

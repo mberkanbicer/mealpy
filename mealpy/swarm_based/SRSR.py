@@ -17,6 +17,8 @@ class BaseSRSR(Root):
     """
         The original version of: Swarm Robotics Search And Rescue (SRSR)
             Swarm Robotics Search And Rescue: A Novel Artificial Intelligence-inspired Optimization Approach
+        Link:
+            https://doi.org/10.1016/j.asoc.2017.02.028
     """
     ID_POS = 0
     ID_FIT = 1
@@ -27,7 +29,7 @@ class BaseSRSR(Root):
     ID_FIT_MOVE = 6
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100, **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
 

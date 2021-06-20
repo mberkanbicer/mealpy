@@ -15,8 +15,10 @@ from copy import deepcopy
 
 class BaseGCO(Root):
     """
-    My modified verion of: Germinal Center Optimization (GCO)
+    My modified version of: Germinal Center Optimization (GCO)
         (Germinal Center Optimization Algorithm)
+    Link:
+        https://www.atlantis-press.com/journals/ijcis/25905179/view
     Noted:
         + Using batch-size updating
         + Instead randomize choosing 3 solution, I use 2 random solution and global best solution
@@ -24,7 +26,7 @@ class BaseGCO(Root):
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100,
                  cr=0.7, f=1.25, **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
         self.cr = cr                # Same as DE algorithm  # default: 0.7
@@ -87,7 +89,7 @@ class OriginalGCO(Root):
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100,
                  cr=0.7, f=1.25, **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
         self.cr = cr                # Same as DE algorithm  # default: 0.7

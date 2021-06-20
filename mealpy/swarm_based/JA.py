@@ -17,12 +17,14 @@ class BaseJA(Root):
         My original version of: Jaya Algorithm (JA)
             (A simple and new optimization algorithm for solving constrained and unconstrained optimization problems)
         Link:
+            https://www.researchgate.net/publication/282532308_Jaya_A_simple_and_new_optimization_algorithm_for_solving_constrained_and_unconstrained_optimization_problems
+        Notes:
             + Remove all third loop in algorithm
             + Change the second random variable r2 to Gaussian instead of uniform
     """
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100, **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
 

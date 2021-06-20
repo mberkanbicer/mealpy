@@ -16,6 +16,9 @@ class BaseSMA(Root):
     """
         My modified version of: Slime Mould Algorithm (SMA)
             (Slime Mould Algorithm: A New Method for Stochastic Optimization)
+        Link:
+             https://doi.org/10.1016/j.future.2020.03.055
+             https://www.researchgate.net/publication/340431861_Slime_mould_algorithm_A_new_method_for_stochastic_optimization
         Notes:
             + Selected 2 unique and random solution to create new solution (not to create variable) --> remove third loop in original version
             + Check bound and update fitness after each individual move instead of after the whole population move in the original version
@@ -25,10 +28,10 @@ class BaseSMA(Root):
     ID_WEI = 2
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100, z=0.03, **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
-        self.z = z
+        self.z = z      # probability threshold
 
     def create_solution(self, minmax=0):
         pos = uniform(self.lb, self.ub)
@@ -103,10 +106,10 @@ class OriginalSMA(Root):
     ID_WEI = 2
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100, z=0.03, **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
-        self.z = z
+        self.z = z  # probability threshold
 
     def create_solution(self, minmax=0):
         pos = uniform(self.lb, self.ub)

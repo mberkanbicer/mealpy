@@ -7,8 +7,6 @@
 #       Github:     https://github.com/thieu1995                                                        %
 # ------------------------------------------------------------------------------------------------------%
 
-# Socha, K., & Dorigo, M. (2008). Ant colony optimization for continuous domains. European journal of operational research, 185(3), 1155-1173.
-
 from numpy.random import normal
 from numpy import sqrt, pi, exp, array, sum, zeros, repeat, abs
 from mealpy.root import Root
@@ -16,8 +14,10 @@ from mealpy.root import Root
 
 class BaseACOR(Root):
     """
-        This version is converted from Matlab code of Hoang Nguyen (nguyenhoang.mdc@gmail.com):
+        The original version of: Ant Colony Optimization Continuous (ACOR)
             Ant Colony Optimization for Continuous Domains (ACOR)
+        Link:
+            https://doi.org/10.1016/j.ejor.2006.06.046
         My improvements:
             + Using Gaussian Distribution instead of random number (normal() function)      (1)
             + Amend solution when they went out of space    (2)
@@ -25,7 +25,7 @@ class BaseACOR(Root):
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100,
                  sample_count=50, q=0.5, zeta=1, **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
         self.sample_count = sample_count # Number of Newly Generated Samples

@@ -16,7 +16,7 @@ from mealpy.root import Root
 
 class BaseBRO(Root):
     """
-        My best version of: Battle royale optimization (BRO)
+        My best version of: Battle Royale Optimization (BRO)
             (Battle royale optimization algorithm)
         Link:
             https://doi.org/10.1007/s00521-020-05004-4
@@ -24,7 +24,7 @@ class BaseBRO(Root):
     ID_DAM = 2
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100, threshold=3, **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
         self.threshold = threshold
@@ -56,7 +56,7 @@ class BaseBRO(Root):
                 if pop[i][self.ID_FIT] < pop[j][self.ID_FIT]:
                     ## Update Winner based on global best solution
                     pos_new = pop[i][self.ID_POS] + uniform() * mean(array([pop[i][self.ID_POS], g_best[self.ID_POS]]), axis=0)
-                    fit_new = self.get_fitness_solution(pos_new)
+                    fit_new = self.get_fitness_position(pos_new)
                     dam_new = pop[i][self.ID_DAM] - 1  ## Substract damaged hurt -1 to go next battle
                     pop[i] = [pos_new, fit_new, dam_new]
 
@@ -66,7 +66,7 @@ class BaseBRO(Root):
                                                            minimum(pop[j][self.ID_POS], g_best[self.ID_POS])) + \
                                               maximum(pop[j][self.ID_POS], g_best[self.ID_POS])
                         pop[j][self.ID_DAM] += 1
-                        pop[j][self.ID_FIT] = self.get_fitness_solution(pop[j][self.ID_POS])
+                        pop[j][self.ID_FIT] = self.get_fitness_position(pop[j][self.ID_POS])
                     else:  ## Loser dead and respawn again
                         pop[j] = self.create_solution()
                 else:
@@ -75,7 +75,7 @@ class BaseBRO(Root):
 
                     ## Update Winner by following position of General to protect the King and General
                     pos_new = pop[j][self.ID_POS] + uniform() * (g_best[self.ID_POS] - pop[j][self.ID_POS])
-                    fit_new = self.get_fitness_solution(pos_new)
+                    fit_new = self.get_fitness_position(pos_new)
                     dam_new = 0
                     pop[j] = [pos_new, fit_new, dam_new]
 
@@ -130,7 +130,7 @@ class OriginalBRO(BaseBRO):
                 else:
                     for d in range(0, self.problem_size):
                         pop[dam][self.ID_POS][d] = uniform() * (self.ub[d] - self.lb[d]) + self.lb[d]
-                    fit_dam = self.get_fitness_solution(pop[dam])
+                    fit_dam = self.get_fitness_position(pop[dam][self.ID_POS])
                     pop[dam][self.ID_FIT] = fit_dam
                     pop[dam][self.ID_DAM] = 0
             if epoch >= delta:

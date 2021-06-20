@@ -17,6 +17,8 @@ class BaseFBIO(Root):
     """
     My modified version of: Forensic-Based Investigation Optimization (FBIO)
         (FBI inspired meta-optimization)
+    Link:
+        https://www.sciencedirect.com/science/article/abs/pii/S1568494620302799
     Notes:
         + Implement the fastest way (Remove all third loop)
         + Change equations
@@ -24,7 +26,7 @@ class BaseFBIO(Root):
     """
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100, **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
 

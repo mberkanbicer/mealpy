@@ -14,18 +14,18 @@ from numpy.random import rand, normal
 
 class OriginalHGS(Root):
     """
-        The original verion of: Hunger Games Search (HGS)
+        The original version of: Hunger Games Search (HGS)
         Link:
             https://aliasgharheidari.com/HGS.html
             Hunger Games Search (HGS): Visions, Conception, Implementation, Deep Analysis, Perspectives, and Towards Performance Shifts
     """
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100, L=0.08, LH=10000, **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
-        self.L = L
-        self.LH = LH
+        self.L = L          # Switching updating  position probability
+        self.LH = LH        # Largest hunger / threshold
 
     def get_hunger_list(self, pop=None, hunger_list=array, g_best=None, g_worst=None):
         # min_index = pop.index(min(pop, key=lambda x: x[self.ID_FIT]))

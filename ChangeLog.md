@@ -1,15 +1,19 @@
-# Version 1.1.1-alpha
+# Version 1.2.0
 
 ### Change models
 
 + Fix bug reduction dimension in FOA
 + Update Firefly Algorithm for better timing performance
+  
 + Add Hunger Games Optimization (HGS) to swarm-based group
++ Add Cuckoo Search Algorithm (CSA) to swarm-based group
 
++ Replace Root.\_\_init\_\_() function by super().\_\_init()\_\_ function in all algorithms.
 
 ### Change others
 
-+ examples: Update all the examples of above algorithms
++ history: Update new algorithms
++ examples: Update all the examples based on algorithm's input
 
 ---------------------------------------------------------------------
 
@@ -203,7 +207,7 @@
 
 ### Change models
 + Added Slime Mould Algorithm (SMA) to bio_based group:
-    + OriginalSMA: the original verion of SMA
+    + OriginalSMA: the original version of SMA
     + BaseSMA: my modified version:
         + Selected 2 unique and random solution to create new solution (not to create variable) --> remove third loop in original version
         + Check bound and update fitness after each individual move instead of after the whole population move in the original version
@@ -993,7 +997,7 @@
     * DE : Change the format of input parameters
 ### Change others
 + Examples: Adding more complex examples
-+ Library: "Opfunu" update the latest verion 0.4.3
++ Library: "Opfunu" update the latest version 0.4.3
     
 ---------------------------------------------------------------------
 # Version 0.1.0 (First version)

@@ -17,13 +17,15 @@ class BaseQSA(Root):
     """
     My version of: Queuing search algorithm (QSA)
         (Queuing search algorithm: A novel metaheuristic algorithm for solving engineering optimization problems)
+    Link:
+        https://www.sciencedirect.com/science/article/abs/pii/S0307904X18302890
     Notes:
         + Remove all third loop
         + Using g_best solution in business 3 instead of random solution
     """
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100, **kwargs):
-        Root.__init__(self, obj_func, lb, ub, verbose, kwargs)
+        super().__init__(obj_func, lb, ub, verbose, kwargs)
         self.epoch = epoch
         self.pop_size = pop_size
 
@@ -249,7 +251,7 @@ class OriginalQSA(BaseQSA):
     The original version of: Queuing search algorithm (QSA)
         (Queuing search algorithm: A novel metaheuristic algorithm for solving engineering optimization problems)
     Link:
-
+        https://www.sciencedirect.com/science/article/abs/pii/S0307904X18302890
     """
 
     def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100, **kwargs):
