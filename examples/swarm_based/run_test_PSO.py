@@ -8,13 +8,13 @@
 #-------------------------------------------------------------------------------------------------------%
 
 from opfunu.cec_basic.cec2014_nobias import *
-from mealpy.swarm_based.PSO import BasePSO, PPSO, PSO_W, HPSO_TVA, CPSO
+from mealpy.swarm_based.PSO import BasePSO, PPSO, P_PSO, HPSO_TVAC, C_PSO, CL_PSO
 
 
 # Setting parameters
 obj_func = F5
-verbose = False
-epoch = 10
+verbose = True
+epoch = 100
 pop_size = 50
 
 # A - Different way to provide lower bound and upper bound. Here are some examples:
@@ -72,27 +72,33 @@ print(md1.loss_train)
 
 # C - Test with different variants of this algorithm
 
-md1 = PPSO(obj_func, lb4, ub4, verbose, epoch, pop_size)
+md1 = PPSO(obj_func, lb1, ub1, verbose, epoch, pop_size)
 best_pos1, best_fit1, list_loss1 = md1.train()
 print(md1.solution[0])
 print(md1.solution[1])
 print(md1.loss_train)
 
-md1 = PSO_W(obj_func, lb4, ub4, verbose, epoch, pop_size)
+md1 = P_PSO(obj_func, lb1, ub1, verbose, epoch, pop_size)
 best_pos1, best_fit1, list_loss1 = md1.train()
 print(md1.solution[0])
 print(md1.solution[1])
 print(md1.loss_train)
 
-md1 = HPSO_TVA(obj_func, lb4, ub4, verbose, epoch, pop_size)
+md1 = HPSO_TVAC(obj_func, lb1, ub1, verbose, epoch, pop_size)
 best_pos1, best_fit1, list_loss1 = md1.train()
 print(md1.solution[0])
 print(md1.solution[1])
 print(md1.loss_train)
 
-print("shit")
 
-md1 = CPSO(obj_func, lb4, ub4, True, epoch, pop_size)
+md1 = C_PSO(obj_func, lb1, ub1, True, epoch, pop_size)
+best_pos1, best_fit1, list_loss1 = md1.train()
+print(md1.solution[0])
+print(md1.solution[1])
+print(md1.loss_train)
+
+
+md1 = CL_PSO(obj_func, lb1, ub1, verbose, epoch, pop_size)
 best_pos1, best_fit1, list_loss1 = md1.train()
 print(md1.solution[0])
 print(md1.solution[1])

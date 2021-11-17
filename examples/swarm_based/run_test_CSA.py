@@ -8,7 +8,7 @@
 # ------------------------------------------------------------------------------------------------------%
 
 from opfunu.cec_basic.cec2014_nobias import *
-from mealpy.swarm_based.CSA import BaseCSA, OriginalCSA
+from mealpy.swarm_based.CSA import BaseCSA
 
 # Setting parameters
 obj_func = F5
@@ -53,9 +53,5 @@ print(md4.solution[1])
 
 # C - Test with different variants of this algorithm
 
-
-md1 = OriginalCSA(obj_func, lb1, ub1, verbose, epoch, pop_size)
-best_pos1, best_fit1, list_loss1 = md1.train()
-print(md1.solution[1])
 
 

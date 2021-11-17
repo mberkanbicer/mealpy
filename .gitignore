@@ -1,8 +1,10 @@
-
+examples/bio_based/run_test_SMA2.py
 # Pycharm
 .idea/
 drafts/
 docs/
+commands.md
+testcase/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

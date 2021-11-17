@@ -1,3 +1,78 @@
+# Version 2.0.0
+
+### Change models
++ Update entire the library based on Optimizer class:
+    + Add class Problem and class Termination
+    + Add 3 training modes (sequential, thread and process)
+    + Add visualization charts:
+        + Global fitness value after generations
+        + Local fitness value after generations
+        + Global Objectives chart (For multi-objective functions)
+        + Local Objective chart (For multi-objective functions)
+        + The Diversity of population chart
+        + The Exploration verse Exploitation chart
+        + The Running time chart for each iteration (epoch / generation)
+        + The Trajectory of some agents after generations 
++ My batch-size idea is removed due to the parallel training mode
++ User can define the Stopping Condition based on:
+    + Epoch (Generation / Iteration) - default
+    + Function Evaluation 
+    + Early Stopping
+    + Time-bound (The running time for a single algorithm for a single task)
+
+
+### Change others
+
++ examples: Update examples for all new algorithms
++ history: Update history of MHAs
+
+---------------------------------------------------------------------
+
+# Version 1.2.2
+
+### Change models
+
++ Add Raven Roosting Optimization (RRO) and its variants to Dummy group
+    + OriginalRRO: The original version of RRO
+    + IRRO: The improved version of RRO
+    + BaseRRO: My developed version (On this version work)
+    
++ Add some newest algorithm to the library
+    + Arithmetic Optimization Algorithm (AOA) to Math-based group
+        + OriginalAOA: The original version of AOA
+    + Aquila Optimizer (AO) to Swarm-based group
+        + OriginalAO: The original version of AO 
+    + Archimedes Optimization Algorithm (ArchOA) to Physics-based group
+        + OriginalArchOA: The original version of ArchOA
+
+### Change others
+
++ examples: Update examples for all new algorithms
++ history: Update history of MHAs
+
+---------------------------------------------------------------------
+
+# Version 1.2.1
+
+### Change models
+
++ Add Coyote Optimization Algorithm (COA) to Swarm-based group
++ Update code LCBO and MLCO
++ Add variant version of:
+    + WOA: Hybrid Improved WOA 
+    + DE:
+        + SADE: Self-Adaptive DE
+        + JADE: Adaptive DE with Optional External Archive
+        + SHADE: Success-History Based Parameter Adaptation DE 
+        + LSHADE: Linear Population Size Reduction for SHADE
+    + PSO: Comprehensive Learning PSO (CL-PSO)
+    
+### Change others
+
++ examples: Update examples for all new algorithms
+
+---------------------------------------------------------------------
+
 # Version 1.2.0
 
 ### Change models

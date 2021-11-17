@@ -7,12 +7,13 @@
 #       Github:     https://github.com/thieu1995                                                        %
 #-------------------------------------------------------------------------------------------------------%
 
-from numpy.random import uniform, normal
-from numpy import sqrt, exp, array
-from mealpy.root import Root
+import concurrent.futures as parallel
+from functools import partial
+import numpy as np
+from mealpy.optimizer import Optimizer
 
 
-class BaseES(Root):
+class BaseES(Optimizer):
     """
         The original version of: Evolution Strategies (ES)
             (Clever Algorithms: Nature-Inspired Programming Recipes - Evolution Strategies)
@@ -23,46 +24,77 @@ class BaseES(Root):
     ID_FIT = 1
     ID_STR = 2      # strategy
 
-    def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100, n_child=0.75, **kwargs):
-        super().__init__(obj_func, lb, ub, verbose, kwargs)
+    def __init__(self, problem, epoch=10000, pop_size=100, n_child=0.75, **kwargs):
+        """
+        Args:
+            epoch (int): maximum number of iterations, default = 10000
+            pop_size (int): number of population size (miu in the paper), default = 100
+            n_child (float/int): if float number --> percentage of child agents, int --> number of child agents
+        """
+        super().__init__(problem, kwargs)
         self.epoch = epoch
-        self.pop_size = pop_size        # miu
-        if n_child < 1:                 # lamda, 75% of pop_size
+        self.pop_size = pop_size
+        if n_child < 1:             # lamda, 75% of pop_size
             self.n_child = int(n_child * self.pop_size)
         else:
             self.n_child = int(n_child)
-        self.distance = 0.05 * (self.ub - self.lb)
+        self.distance = 0.05 * (self.problem.ub - self.problem.lb)
 
-    def create_solution(self, minmax=0):
-        pos = uniform(self.lb, self.ub)
-        fit = self.get_fitness_position(pos)
-        strategy = uniform(0, self.distance, self.problem_size)
-        return [pos, fit, strategy]
+        self.nfe_per_epoch = pop_size + self.n_child
+        self.sort_flag = True
 
-    def _mutate_solution__(self, solution=None):
-        child = solution[self.ID_POS] + solution[self.ID_STR] * normal(0, 1.0, self.problem_size)
-        child = self.amend_position_faster(child)
-        fit = self.get_fitness_position(child)
-        tau = sqrt(2.0 * self.problem_size) ** -1.0
-        tau_p = sqrt(2.0 * sqrt(self.problem_size)) ** -1.0
-        strategy = exp(tau_p * normal(0, 1.0, self.problem_size) + tau * normal(0, 1.0, self.problem_size))
-        return [child, fit, strategy]
+    def create_solution(self):
+        """
+        Returns:
+            The position position with 2 element: index of position/location and index of fitness wrapper
+            The general format: [position, [target, [obj1, obj2, ...]]]
 
-    def train(self):
-        pop = [self.create_solution() for _ in range(self.pop_size)]
-        pop, g_best = self.get_sorted_pop_and_global_best_solution(pop, self.ID_FIT, self.ID_MIN_PROB)
+        ## To get the position, fitness wrapper, target and obj list
+        ##      A[self.ID_POS]                  --> Return: position
+        ##      A[self.ID_FIT]                  --> Return: [target, [obj1, obj2, ...]]
+        ##      A[self.ID_FIT][self.ID_TAR]     --> Return: target
+        ##      A[self.ID_FIT][self.ID_OBJ]     --> Return: [obj1, obj2, ...]
+        """
+        position = np.random.uniform(self.problem.lb, self.problem.ub)
+        fitness = self.get_fitness_position(position=position)
+        strategy = np.random.uniform(0, self.distance)
+        return [position, fitness, strategy]
 
-        for epoch in range(0, self.epoch):
-            children = [self._mutate_solution__(pop[i]) for i in range(0, self.n_child)]
-            pop = pop + children
-            pop, g_best = self.update_sorted_population_and_global_best_solution(pop, self.ID_MIN_PROB, g_best)
-            pop = pop[:self.pop_size]
-            # Update the global best
-            self.loss_train.append(g_best[self.ID_FIT])
-            if self.verbose:
-                print("> Epoch: {}, Best fit: {}".format(epoch + 1, g_best[self.ID_FIT]))
-        self.solution = g_best
-        return g_best[self.ID_POS], g_best[self.ID_FIT], self.loss_train
+    def create_child(self, agent_i):
+        pos_new = agent_i[self.ID_POS] + agent_i[self.ID_STR] * np.random.normal(0, 1.0, self.problem.n_dims)
+        pos_new = self.amend_position_faster(pos_new)
+        fit_new = self.get_fitness_position(pos_new)
+        tau = np.sqrt(2.0 * self.problem.n_dims) ** -1.0
+        tau_p = np.sqrt(2.0 * np.sqrt(self.problem.n_dims)) ** -1.0
+        strategy = np.exp(tau_p * np.random.normal(0, 1.0, self.problem.n_dims) + tau * np.random.normal(0, 1.0, self.problem.n_dims))
+        return [pos_new, fit_new, strategy]
+
+    def evolve(self, mode='sequential', epoch=None, pop=None, g_best=None):
+        """
+        Args:
+            mode (str): 'sequential', 'thread', 'process'
+                + 'sequential': recommended for simple and small task (< 10 seconds for calculating objective)
+                + 'thread': recommended for IO bound task, or small computing task (< 2 minutes for calculating objective)
+                + 'process': recommended for hard and big task (> 2 minutes for calculating objective)
+
+        Returns:
+            [position, fitness value]
+        """
+        pop_copy = pop[:self.n_child].copy()
+
+        if mode == "thread":
+            with parallel.ThreadPoolExecutor() as executor:
+                pop_child = executor.map(self.create_child, pop_copy)
+            children = [x for x in pop_child]
+        elif mode == "process":
+            with parallel.ProcessPoolExecutor() as executor:
+                pop_child = executor.map(self.create_child, pop_copy)
+            children = [x for x in pop_child]
+        else:
+            children = [self.create_child(agent) for agent in pop_copy]
+
+        pop = sorted(pop + children, key=lambda agent: agent[self.ID_FIT][self.ID_TAR])
+        return pop[:self.pop_size]
 
 
 class LevyES(BaseES):
@@ -72,38 +104,59 @@ class LevyES(BaseES):
             + Applied levy-flight
             + Change the flow of algorithm
     """
-    ID_POS = 0
-    ID_FIT = 1
-    ID_STR = 2  # strategy
 
-    def __init__(self, obj_func=None, lb=None, ub=None, verbose=True, epoch=750, pop_size=100, n_child=0.75, **kwargs):
-        BaseES.__init__(self, obj_func, lb, ub, verbose, epoch, pop_size, n_child, kwargs=kwargs)
+    def __init__(self, problem, epoch=10000, pop_size=100, n_child=0.75, **kwargs):
+        """
+        Args:
+            epoch (int): maximum number of iterations, default = 10000
+            pop_size (int): number of population size (miu in the paper), default = 100
+            n_child (float/int): if float number --> percentage of child agents, int --> number of child agents
+        """
+        super().__init__(problem, epoch, pop_size, n_child, **kwargs)
+        self.nfe_per_epoch = 2 * pop_size
 
-    def __create_levy_population__(self, epoch=None, g_best=None, pop=None):
-        children = []
-        for sol in pop:
-            pos = self.levy_flight(epoch, sol[self.ID_POS], g_best[self.ID_POS])
-            fit = self.get_fitness_position(pos)
-            tau = sqrt(2.0 * self.problem_size) ** -1.0
-            tau_p = sqrt(2.0 * sqrt(self.problem_size)) ** -1.0
-            stdevs = array([exp(tau_p * normal(0, 1.0) + tau * normal(0, 1.0)) for _ in range(self.problem_size)])
-            children.append([pos, fit, stdevs])
-        return children
+    def create_levy_child(self, agent_i, g_best):
+        levy = self.get_levy_flight_step(multiplier=0.01, case=-1)
+        pos_new = agent_i[self.ID_POS] + np.random.uniform(self.problem.lb, self.problem.ub) * \
+                  levy * (agent_i[self.ID_POS] - g_best[self.ID_POS])
+        pos_new = self.amend_position_faster(pos_new)
+        fit_new = self.get_fitness_position(pos_new)
+        tau = np.sqrt(2.0 * self.problem.n_dims) ** -1.0
+        tau_p = np.sqrt(2.0 * np.sqrt(self.problem.n_dims)) ** -1.0
+        stdevs = np.array([np.exp(tau_p * np.random.normal(0, 1.0) + tau * np.random.normal(0, 1.0)) for _ in range(self.problem.n_dims)])
+        return [pos_new, fit_new, stdevs]
 
-    def train(self):
-        pop = [self.create_solution() for _ in range(self.pop_size)]
-        pop, g_best = self.get_sorted_pop_and_global_best_solution(pop, self.ID_FIT, self.ID_MIN_PROB)
+    def evolve(self, mode='sequential', epoch=None, pop=None, g_best=None):
+        """
+        Args:
+            mode (str): 'sequential', 'thread', 'process'
+                + 'sequential': recommended for simple and small task (< 10 seconds for calculating objective)
+                + 'thread': recommended for IO bound task, or small computing task (< 2 minutes for calculating objective)
+                + 'process': recommended for hard and big task (> 2 minutes for calculating objective)
 
-        for epoch in range(0, self.epoch):
-            children = [self._mutate_solution__(pop[i]) for i in range(0, self.n_child)]
-            children_levy = self.__create_levy_population__(epoch, g_best, pop[self.n_child:])
-            pop = pop + children + children_levy
-            pop, g_best = self.update_sorted_population_and_global_best_solution(pop, self.ID_MIN_PROB, g_best)
-            pop = pop[:self.pop_size]
-            # Update the global best
-            self.loss_train.append(g_best[self.ID_FIT])
-            if self.verbose:
-                print("> Epoch: {}, Best fit: {}".format(epoch + 1, g_best[self.ID_FIT]))
-        self.solution = g_best
-        return g_best[self.ID_POS], g_best[self.ID_FIT], self.loss_train
+        Returns:
+            [position, fitness value]
+        """
+        pop_copy = pop[:self.n_child].copy()
+        pop_copy_levy = pop[self.n_child:].copy()
+
+        if mode == "thread":
+            with parallel.ThreadPoolExecutor() as executor:
+                pop_child = executor.map(self.create_child, pop_copy)
+            with parallel.ThreadPoolExecutor() as executor:
+                pop_child_levy = executor.map(partial(self.create_levy_child, g_best=g_best), pop_copy_levy)
+            children = [x for x in pop_child] + [x for x in pop_child_levy]
+        elif mode == "process":
+            with parallel.ProcessPoolExecutor() as executor:
+                pop_child = executor.map(self.create_child, pop_copy)
+            with parallel.ProcessPoolExecutor() as executor:
+                pop_child_levy = executor.map(partial(self.create_levy_child, g_best=g_best), pop_copy_levy)
+            children = [x for x in pop_child] + [x for x in pop_child_levy]
+        else:
+            pop_child = [self.create_child(agent) for agent in pop_copy]
+            pop_child_levy = [self.create_levy_child(agent, g_best) for agent in pop_copy_levy]
+            children = pop_child + pop_child_levy
+
+        pop = sorted(pop + children, key=lambda agent: agent[self.ID_FIT][self.ID_TAR])
+        return pop[:self.pop_size]
 
