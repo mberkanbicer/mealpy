@@ -49,6 +49,8 @@ class Optimizer:
         """
         super(Optimizer, self).__init__()
         self.epoch, self.pop_size, self.solution = None, None, None
+        self.mode = "sequential"
+        self.pop, self.g_best = None, None
         self.history = History()
         if not isinstance(problem, Problem):
             problem = Problem(problem)
@@ -79,6 +81,19 @@ class Optimizer:
         else:
             pass
 
+    def initialization(self):
+        self.pop = self.create_population(self.pop_size)
+        if self.sort_flag:
+            self.pop, self.g_best = self.get_global_best_solution(self.pop)  # We sort the population
+        else:
+            _, self.g_best = self.get_global_best_solution(self.pop)  # We don't sort the population
+
+    def before_evolve(self, epoch):
+        pass
+
+    def after_evolve(self, epoch):
+        pass
+
     def solve(self, mode='sequential'):
         """
         Args:
@@ -90,30 +105,32 @@ class Optimizer:
         Returns:
             [position, fitness value]
         """
+        self.mode = mode
         self.termination_start()
-        pop = self.create_population(mode, self.pop_size)
-        if self.sort_flag:
-            pop, g_best = self.get_global_best_solution(pop)  # We sort the population
-        else:
-            _, g_best = self.get_global_best_solution(pop)  # We don't sort the population
-        self.history.save_initial_best(g_best)
+        self.initialization()
+        self.history.save_initial_best(self.g_best)
 
         for epoch in range(0, self.epoch):
             time_epoch = time.time()
 
+            ## Call before evolve function
+            self.before_evolve(epoch)
+
             ## Evolve method will be called in child class
-            pop = self.evolve(mode, epoch, pop, g_best)
+            self.evolve(epoch)
+
+            ## Call after evolve function
+            self.after_evolve(epoch)
 
             # update global best position
             if self.sort_flag:
-                pop, g_best = self.update_global_best_solution(pop)  # We sort the population
+                self.pop, self.g_best = self.update_global_best_solution(self.pop)  # We sort the population
             else:
-                _, g_best = self.update_global_best_solution(pop)  # We don't sort the population
-
+                _, self.g_best = self.update_global_best_solution(self.pop)  # We don't sort the population
             ## Additional information for the framework
             time_epoch = time.time() - time_epoch
             self.history.list_epoch_time.append(time_epoch)
-            self.history.list_population.append(pop.copy())
+            self.history.list_population.append(deepcopy(self.pop))
             self.print_epoch(epoch + 1, time_epoch)
             if self.termination_flag:
                 if self.termination.mode == 'TB':
@@ -139,7 +156,7 @@ class Optimizer:
         self.save_optimization_process()
         return self.solution[self.ID_POS], self.solution[self.ID_FIT][self.ID_TAR]
 
-    def evolve(self, mode='sequential', epoch=None, pop=None, g_best=None):
+    def evolve(self, epoch):
         pass
 
     def create_solution(self):
@@ -158,7 +175,7 @@ class Optimizer:
         fitness = self.get_fitness_position(position=position)
         return [position, fitness]
 
-    def create_population(self, mode='sequential', pop_size=None):
+    def create_population(self, pop_size=None):
         """
         Args:
             mode (str): processing mode, it can be "sequential", "thread" or "process"
@@ -167,26 +184,26 @@ class Optimizer:
         Returns:
             population: list of solutions/agents
         """
-        if pop_size is not None:
+        if pop_size is None:
             pop_size = self.pop_size
         pop = []
-        if mode == "thread":
+        if self.mode == "thread":
             with parallel.ThreadPoolExecutor() as executor:
                 list_executors = [executor.submit(self.create_solution) for _ in range(pop_size)]
                 # This method yield the result everytime a thread finished their job (not by order)
                 for f in parallel.as_completed(list_executors):
                     pop.append(f.result())
-        elif mode == "process":
+        elif self.mode == "process":
             with parallel.ProcessPoolExecutor() as executor:
                 list_executors = [executor.submit(self.create_solution) for _ in range(pop_size)]
                 # This method yield the result everytime a cpu finished their job (not by order).
                 for f in parallel.as_completed(list_executors):
                     pop.append(f.result())
         else:
-            pop = [self.create_solution() for _ in range(0, self.pop_size)]
+            pop = [self.create_solution() for _ in range(0, pop_size)]
         return pop
 
-    def update_fitness_population(self, mode='sequential', pop=None):
+    def update_fitness_population(self, pop=None):
         """
         Args:
             mode (str): processing mode, it can be "sequential", "thread" or "process"
@@ -195,12 +212,12 @@ class Optimizer:
         Returns:
             population: with updated fitness value
         """
-        if mode == "thread":
+        if self.mode == "thread":
             with parallel.ThreadPoolExecutor() as executor:
                 list_results = executor.map(self.get_fitness_solution, pop)  # Return result not the future object
                 for idx, fit in enumerate(list_results):
                     pop[idx][self.ID_FIT] = fit
-        elif mode == "process":
+        elif self.mode == "process":
             with parallel.ProcessPoolExecutor() as executor:
                 list_results = executor.map(self.get_fitness_solution, pop)  # Return result not the future object
                 for idx, fit in enumerate(list_results):
@@ -222,7 +239,6 @@ class Optimizer:
         if not self.problem.obj_is_list:
             objs = [objs]
         fit = np.dot(objs, self.problem.obj_weight)
-        # fit = fit if self.minmax == "min" else 1.0 / (fit + self.EPSILON)
         return [fit, objs]
 
     def get_fitness_solution(self, solution=None):
@@ -247,9 +263,9 @@ class Optimizer:
         """
         sorted_pop = sorted(pop, key=lambda agent: agent[self.ID_FIT][self.ID_TAR])  # Already returned a new sorted list
         if self.problem.minmax == "min":
-            return sorted_pop, sorted_pop[0].copy()
+            return sorted_pop, deepcopy(sorted_pop[0])
         else:
-            return sorted_pop, sorted_pop[-1].copy()
+            return sorted_pop, deepcopy(sorted_pop[-1])
 
     def get_better_solution(self, agent1: list, agent2: list):
         """
@@ -262,12 +278,12 @@ class Optimizer:
         """
         if self.problem.minmax == "min":
             if agent1[self.ID_FIT][self.ID_TAR] < agent2[self.ID_FIT][self.ID_TAR]:
-                return agent1.copy()
-            return agent2.copy()
+                return deepcopy(agent1)
+            return deepcopy(agent2)
         else:
             if agent1[self.ID_FIT][self.ID_TAR] < agent2[self.ID_FIT][self.ID_TAR]:
-                return agent2.copy()
-            return agent1.copy()
+                return deepcopy(agent2)
+            return deepcopy(agent1)
 
     def compare_agent(self, agent_a: list, agent_b: list):
         """
@@ -305,12 +321,12 @@ class Optimizer:
             if worst is None:
                 exit(0)
             else:
-                return pop, None, pop[:-worst].copy()
+                return pop, None, deepcopy(pop[:-worst])
         else:
             if worst is None:
-                return pop, pop[:best].copy(), None
+                return pop, deepcopy(pop[:best]), None
             else:
-                return pop, pop[:best].copy(), pop[:-worst].copy()
+                return pop, deepcopy(pop[:best]), deepcopy(pop[:-worst])
 
     def get_special_fitness(self, pop=None):
         """
@@ -345,18 +361,17 @@ class Optimizer:
         # self.history_list_c_best.append(current_best)
         # better = self.get_better_solution(current_best, self.history_list_g_best[-1])
         # self.history_list_g_best.append(better)
-
         if save:
             self.history.list_current_best.append(current_best)
             better = self.get_better_solution(current_best, self.history.list_global_best[-1])
             self.history.list_global_best.append(better)
-            return sorted_pop.copy(), better.copy()
+            return deepcopy(sorted_pop), deepcopy(better)
         else:
             local_better = self.get_better_solution(current_best, self.history.list_current_best[-1])
             self.history.list_current_best[-1] = local_better
             global_better = self.get_better_solution(current_best, self.history.list_global_best[-1])
             self.history.list_global_best[-1] = global_better
-            return sorted_pop.copy(), global_better.copy()
+            return deepcopy(sorted_pop), deepcopy(global_better)
 
     def print_epoch(self, epoch, runtime):
         """
@@ -366,9 +381,6 @@ class Optimizer:
             runtime (float): the runtime for current iteration
         """
         if self.verbose:
-            # print(f"> Epoch: {epoch}, Current best: {self.history_list_c_best[-1][self.ID_FIT][self.ID_TAR]}, "
-            #       f"Global best: {self.history_list_g_best[-1][self.ID_FIT][self.ID_TAR]}, Runtime: {runtime:.5f} seconds")
-
             print(f"> Epoch: {epoch}, Current best: {self.history.list_current_best[-1][self.ID_FIT][self.ID_TAR]}, "
                   f"Global best: {self.history.list_global_best[-1][self.ID_FIT][self.ID_TAR]}, Runtime: {runtime:.5f} seconds")
 
@@ -407,11 +419,9 @@ class Optimizer:
         div_max = np.max(self.history.list_diversity)
         self.history.list_exploration = 100 * (self.history.list_diversity / div_max)
         self.history.list_exploitation = 100 - self.history.list_exploration
-
         self.solution = self.history.list_global_best[-1]
 
     ## Crossover techniques
-
     def get_index_roulette_wheel_selection(self, list_fitness: np.array):
         """
         This method can handle min/max problem, and negative or positive fitness value.
@@ -432,6 +442,7 @@ class Optimizer:
             r = r + f
             if r > total_sum:
                 return idx
+        return np.random.choice(range(0, len(list_fitness)))
 
     def get_solution_kway_tournament_selection(self, pop: list, k_way=0.2, output=2):
         if 0 < k_way < 1:
@@ -473,13 +484,6 @@ class Optimizer:
         else:
             step = multiplier * s
         return step
-
-    def levy_flight_2(self, position=None, g_best_position=None):
-        alpha = 0.01
-        xichma_v = 1
-        xichma_u = ((gamma(1 + 1.5) * np.sin(np.pi * 1.5 / 2)) / (gamma((1 + 1.5) / 2) * 1.5 * 2 ** ((1.5 - 1) / 2))) ** (1.0 / 1.5)
-        levy_b = (np.random.normal(0, xichma_u ** 2)) / (np.sqrt(abs(np.random.normal(0, xichma_v ** 2))) ** (1.0 / 1.5))
-        return position + alpha * levy_b * (position - g_best_position)
 
     def levy_flight(self, epoch=None, position=None, g_best_position=None, step=0.001, case=0):
         """
@@ -556,9 +560,9 @@ class Optimizer:
         # Already returned a new sorted list
         sorted_pop = sorted(pop, key=lambda agent: agent[self.ID_FIT][self.ID_TAR])
         if self.problem.minmax == "min":
-            return sorted_pop[0].copy(), sorted_pop[-1].copy()
+            return deepcopy(sorted_pop[0]), deepcopy(sorted_pop[-1])
         else:
-            return sorted_pop[-1].copy(), sorted_pop[0].copy()
+            return deepcopy(sorted_pop[-1]), deepcopy(sorted_pop[0])
 
     ### Survivor Selection
     def greedy_selection_population(self, pop_old=None, pop_new=None):
@@ -570,12 +574,16 @@ class Optimizer:
         Returns:
             The new population with better solutions
         """
+        len_old, len_new = len(pop_old), len(pop_new)
+        if len_old != len_new:
+            print("Pop old and Pop new should be the same length!")
+            exit(0)
         if self.problem.minmax == "min":
             return [pop_new[i] if pop_new[i][self.ID_FIT][self.ID_TAR] < pop_old[i][self.ID_FIT][self.ID_TAR]
-                    else pop_old[i] for i in range(self.pop_size)]
+                    else pop_old[i] for i in range(len_old)]
         else:
             return [pop_new[i] if pop_new[i][self.ID_FIT] > pop_old[i][self.ID_FIT]
-                    else pop_old[i] for i in range(self.pop_size)]
+                    else pop_old[i] for i in range(len_old)]
 
     def get_sorted_strim_population(self, pop=None, pop_size=None, reverse=False):
         """
@@ -592,27 +600,16 @@ class Optimizer:
             pop = sorted(pop, key=lambda agent: agent[self.ID_FIT][self.ID_TAR], reverse=reverse)
         return pop[:pop_size]
 
+    def create_opposition_position(self, agent=None, g_best=None):
+        """
+        Args:
+            agent (): The current agent
+            g_best (): the global best solution
 
-
-    def update_global_best_global_worst_solution(self, pop=None, id_best=None, id_worst=None, g_best=None):
-        """ Sort the copy of population and update the current best position. Return the new current best position """
-        sorted_pop = sorted(pop, key=lambda temp: temp[self.ID_FIT])
-        current_best = sorted_pop[id_best]
-        g_best = deepcopy(current_best) if current_best[self.ID_FIT] < g_best[self.ID_FIT] else deepcopy(g_best)
-        return g_best, sorted_pop[id_worst]
-
-    def update_sorted_population_and_global_best_solution(self, pop=None, id_best=None, g_best=None):
-        """ Sort the population and update the current best position. Return the sorted population and the new current best position """
-        sorted_pop = sorted(pop, key=lambda temp: temp[self.ID_FIT])
-        current_best = sorted_pop[id_best]
-        g_best = deepcopy(current_best) if current_best[self.ID_FIT] < g_best[self.ID_FIT] else deepcopy(g_best)
-        return sorted_pop, g_best
-
-    def create_opposition_position(self, position=None, g_best=None):
-        return self.lb + self.ub - g_best[self.ID_POS] + np.random.uniform() * (g_best[self.ID_POS] - position)
-
-
-
+        Returns:
+            The opposite solution
+        """
+        return self.problem.lb + self.problem.ub - g_best[self.ID_POS] + np.random.uniform() * (g_best[self.ID_POS] - agent[self.ID_POS])
 
     def get_parent_kway_tournament_selection(self, pop=None, k_way=0.2, output=2):
         if 0 < k_way < 1:
@@ -629,14 +626,6 @@ class Optimizer:
         w2 = np.multiply(r, mom_pos) + np.multiply((1 - r), dad_pos)
         return w1, w2
 
-    ### Mutation
-    ### This method won't be used in any algorithm because of it's slow performance
-    ### Using numpy vector for faster performance
-    def mutation_flip_point(self, parent_pos, idx):
-        w = deepcopy(parent_pos)
-        w[idx] = np.random.uniform(self.lb[idx], self.ub[idx])
-        return w
-
 
     #### Improved techniques can be used in any algorithms: 1
     ## Based on this paper: An efficient equilibrium optimizer with mutation strategy for numerical optimization (but still different)
@@ -650,24 +639,31 @@ class Optimizer:
         ## Sort the updated population based on fitness
         pop = sorted(pop, key=lambda item: item[self.ID_FIT])
         pop_s1, pop_s2 = pop[:pop_len], pop[pop_len:]
+
         ## Mutation scheme
+        pop_new = []
         for i in range(0, pop_len):
-            pos_new = pop_s1[i][self.ID_POS] * (1 + np.random.normal(0, 1, self.problem_size))
-            fit = self.get_fitness_position(pos_new)
-            if fit < pop_s1[i][self.ID_FIT]:        ## Greedy method --> improved exploitation
-                pop_s1[i] = [pos_new, fit]
+            agent = deepcopy(pop_s1[i])
+            pos_new = pop_s1[i][self.ID_POS] * (1 + np.random.normal(0, 1, self.problem.n_dims))
+            agent[self.ID_POS] = self.amend_position_faster(pos_new)
+            pop_new.append(agent)
+        pop_new = self.update_fitness_population(pop_new)
+        pop_s1 = self.greedy_selection_population(pop_s1, pop_new)  ## Greedy method --> improved exploitation
+
         ## Search Mechanism
         pos_s1_list = [item[self.ID_POS] for item in pop_s1]
         pos_s1_mean = np.mean(pos_s1_list, axis=0)
+        pop_new = []
         for i in range(0, pop_len):
-            pos_new = (g_best[self.ID_POS] - pos_s1_mean) - np.random.random() * (self.lb + np.random.random() * (self.ub - self.lb))
-            fit = self.get_fitness_position(pos_new)
-            pop_s2[i] = [pos_new, fit]              ## Keep the diversity of populatoin and still improved the exploration
+            agent = deepcopy(pop_s2[i])
+            pos_new = (g_best[self.ID_POS] - pos_s1_mean) - np.random.random() * \
+                      (self.problem.lb + np.random.random() * (self.problem.ub - self.problem.lb))
+            agent[self.ID_POS] = self.amend_position_faster(pos_new)
+            pop_new.append(agent)
+        ## Keep the diversity of populatoin and still improved the exploration
+        pop_s2 = self.update_fitness_population(pop_new)
+        pop_s2 = self.greedy_selection_population(pop_s2, pop_new)
 
         ## Construct a new population
         pop = pop_s1 + pop_s2
-        pop, g_best = self.update_sorted_population_and_global_best_solution(pop, self.ID_MIN_PROB, g_best)
-        return pop, g_best
-
-    def train(self):
-        pass
+        return pop

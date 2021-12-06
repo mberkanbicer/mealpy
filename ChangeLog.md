@@ -1,3 +1,34 @@
+# Version 2.1.1
+
+### Update
+
++ Replace all .copy() operator by deepcopy() operator in module copy. Because shallow copy causing the problem with 
+  nested list inside list. Especially when copying population with nested of list position inside agent.
++ Add the Knapsack Problem example: examples/applications/discrete-problems/knapsack-problem.py
++ Add the Linear Regression example with Pytorch: examples/applications/pytorch/linear_regression.py
++ Add tutorial videos "How to use Mealpy library" to README.md
+
+---------------------------------------------------------------------
+
+# Version 2.1.0
+
+### Change models
+
++ Move all parallel function to Optimizer class
++ Remove unused methods in Optimizer class
++ Update all algorithm models with the same code-style as previous version
++ Restructure some hard algorithms include BFO, CRO.
+
+### Change others
+
++ examples: Update examples for all new algorithms
++ history: Update history of MHAs
++ parallel: Add comment on parallel and sequential mode
++ Add code-of-conduct
++ Add the complete example: examples/example_full_v210.py
+
+---------------------------------------------------------------------
+
 # Version 2.0.0
 
 ### Change models
