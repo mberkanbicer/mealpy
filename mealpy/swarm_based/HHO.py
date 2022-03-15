@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-# ------------------------------------------------------------------------------------------------------%
-# Created by "Thieu Nguyen" at 14:51, 17/03/2020                                                        %
-#                                                                                                       %
-#       Email:      nguyenthieu2102@gmail.com                                                           %
-#       Homepage:   https://www.researchgate.net/profile/Thieu_Nguyen6                                  %
-#       Github:     https://github.com/thieu1995                                                        %
-#-------------------------------------------------------------------------------------------------------%
+# !/usr/bin/env python
+# Created by "Thieu" at 14:51, 17/03/2020 ----------%
+#       Email: nguyenthieu2102@gmail.com            %
+#       Github: https://github.com/thieu1995        %
+# --------------------------------------------------%
 
 import numpy as np
 from math import gamma
@@ -15,20 +12,48 @@ from mealpy.optimizer import Optimizer
 
 class BaseHHO(Optimizer):
     """
-        The original version of: Harris Hawks Optimization (HHO)
-            (Harris Hawks Optimization: Algorithm and Applications)
-        Link:
-            https://doi.org/10.1016/j.future.2019.02.028
+    The original version of: Harris Hawks Optimization (HHO)
+
+    Links:
+        1. https://doi.org/10.1016/j.future.2019.02.028
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.swarm_based.HHO import BaseHHO
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> model = BaseHHO(problem_dict1, epoch, pop_size)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+
+    References
+    ~~~~~~~~~~
+    [1] Heidari, A.A., Mirjalili, S., Faris, H., Aljarah, I., Mafarja, M. and Chen, H., 2019.
+    Harris hawks optimization: Algorithm and applications. Future generation computer systems, 97, pp.849-872.
     """
 
     def __init__(self, problem, epoch=10000, pop_size=100, **kwargs):
         """
         Args:
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = 1.5*pop_size
+        self.nfe_per_epoch = 1.5 * pop_size
         self.sort_flag = False
 
         self.epoch = epoch
@@ -36,6 +61,8 @@ class BaseHHO(Optimizer):
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
@@ -48,7 +75,7 @@ class BaseHHO(Optimizer):
             J = 2 * (1 - np.random.uniform())
 
             # -------- Exploration phase Eq. (1) in paper -------------------
-            if (np.abs(E) >= 1):
+            if np.abs(E) >= 1:
                 # Harris' hawks perch randomly based on 2 strategy:
                 if np.random.rand() >= 0.5:  # perch based on other family members
                     X_rand = deepcopy(self.pop[np.random.randint(0, self.pop_size)][self.ID_POS])
@@ -58,7 +85,7 @@ class BaseHHO(Optimizer):
                     X_m = np.mean([x[self.ID_POS] for x in self.pop])
                     pos_new = (self.g_best[self.ID_POS] - X_m) - np.random.uniform() * \
                               (self.problem.lb + np.random.uniform() * (self.problem.ub - self.problem.lb))
-                pos_new = self.amend_position_faster(pos_new)
+                pos_new = self.amend_position(pos_new)
                 pop_new.append([pos_new, None])
             # -------- Exploitation phase -------------------
             else:
@@ -71,7 +98,7 @@ class BaseHHO(Optimizer):
                         pos_new = delta_X - E * np.abs(J * self.g_best[self.ID_POS] - self.pop[idx][self.ID_POS])
                     else:  # Soft besiege Eq. (4) in paper
                         pos_new = self.g_best[self.ID_POS] - E * np.abs(delta_X)
-                    pos_new = self.amend_position_faster(pos_new)
+                    pos_new = self.amend_position(pos_new)
                     pop_new.append([pos_new, None])
                 else:
                     xichma = np.power((gamma(1 + 1.5) * np.sin(np.pi * 1.5 / 2.0)) /
@@ -82,10 +109,10 @@ class BaseHHO(Optimizer):
                     else:  # Hard besiege Eq. (11) in paper
                         X_m = np.mean([x[self.ID_POS] for x in self.pop])
                         Y = self.g_best[self.ID_POS] - E * np.abs(J * self.g_best[self.ID_POS] - X_m)
-                    pos_Y = self.amend_position_faster(Y)
+                    pos_Y = self.amend_position(Y)
                     fit_Y = self.get_fitness_position(pos_Y)
                     Z = Y + np.random.uniform(self.problem.lb, self.problem.ub) * LF_D
-                    pos_Z = self.amend_position_faster(Z)
+                    pos_Z = self.amend_position(Z)
                     fit_Z = self.get_fitness_position(pos_Z)
 
                     if self.compare_agent([pos_Y, fit_Y], self.pop[idx]):

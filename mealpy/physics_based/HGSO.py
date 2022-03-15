@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-# ------------------------------------------------------------------------------------------------------%
-# Created by "Thieu Nguyen" at 07:03, 18/03/2020                                                        %
-#                                                                                                       %
-#       Email:      nguyenthieu2102@gmail.com                                                           %
-#       Homepage:   https://www.researchgate.net/profile/Thieu_Nguyen6                                  %
-#       Github:     https://github.com/thieu1995                                                        %
-#-------------------------------------------------------------------------------------------------------%
+# !/usr/bin/env python
+# Created by "Thieu" at 07:03, 18/03/2020 ----------%
+#       Email: nguyenthieu2102@gmail.com            %
+#       Github: https://github.com/thieu1995        %
+# --------------------------------------------------%
 
 import numpy as np
 from copy import deepcopy
@@ -14,20 +11,50 @@ from mealpy.optimizer import Optimizer
 
 class BaseHGSO(Optimizer):
     """
-        The original version of: Henry Gas Solubility Optimization (HGSO)
-            Henry gas solubility optimization: A novel physics-based algorithm
-        Link:
-            https://www.sciencedirect.com/science/article/abs/pii/S0167739X19306557
+    The original version of: Henry Gas Solubility Optimization (HGSO)
+
+    Links:
+        1. https://www.sciencedirect.com/science/article/abs/pii/S0167739X19306557
+
+    Hyper-parameters should fine tuned in approximate range to get faster convergen toward the global optimum:
+        + n_clusters (int): [2, 10], number of clusters, default = 2
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.physics_based.HGSO import BaseHGSO
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> n_clusters = 3
+    >>> model = BaseHGSO(problem_dict1, epoch, pop_size, n_clusters)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+
+    References
+    ~~~~~~~~~~
+    [1] Hashim, F.A., Houssein, E.H., Mabrouk, M.S., Al-Atabany, W. and Mirjalili, S., 2019. Henry gas solubility
+    optimization: A novel physics-based algorithm. Future Generation Computer Systems, 101, pp.646-667.
     """
 
     def __init__(self, problem, epoch=10000, pop_size=100, n_clusters=2, **kwargs):
         """
         Args:
-            problem ():
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
             n_clusters (int): number of clusters, default = 2
-            **kwargs ():
         """
         super().__init__(problem, kwargs)
         self.nfe_per_epoch = pop_size
@@ -56,7 +83,7 @@ class BaseHGSO(Optimizer):
     def _create_group(self, pop):
         pop_group = []
         for idx in range(0, self.n_clusters):
-            pop_group.append(pop[idx*self.n_elements:(idx+1)*self.n_elements])
+            pop_group.append(pop[idx * self.n_elements:(idx + 1) * self.n_elements])
         return pop_group
 
     def _flatten_group(self, group):
@@ -80,6 +107,8 @@ class BaseHGSO(Optimizer):
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
@@ -94,12 +123,12 @@ class BaseHGSO(Optimizer):
                 ##### Based on Eq. 8, 9, 10
                 self.H_j = self.H_j * np.exp(-self.C_j * (1.0 / np.exp(-epoch / self.epoch) - 1.0 / self.T0))
                 S_ij = self.K * self.H_j * self.P_ij
-                gama = self.beta * np.exp(- ((self.p_best[i][self.ID_FIT][self.ID_TAR] + self.epxilon) /
-                                             (self.pop_group[i][j][self.ID_FIT][self.ID_TAR] + self.epxilon)))
+                gama = self.beta * np.exp(- ((self.p_best[i][self.ID_TAR][self.ID_FIT] + self.epxilon) /
+                                             (self.pop_group[i][j][self.ID_TAR][self.ID_FIT] + self.epxilon)))
                 X_ij = self.pop_group[i][j][self.ID_POS] + F * np.random.uniform() * gama * \
                        (self.p_best[i][self.ID_POS] - self.pop_group[i][j][self.ID_POS]) + \
                        F * np.random.uniform() * self.alpha * (S_ij * self.g_best[self.ID_POS] - self.pop_group[i][j][self.ID_POS])
-                pos_new = self.amend_position_faster(X_ij)
+                pos_new = self.amend_position(X_ij)
                 pop_new.append([pos_new, None])
                 nfe_epoch += 1
             self.pop_group[i] = self.update_fitness_population(pop_new)
@@ -112,14 +141,14 @@ class BaseHGSO(Optimizer):
         ## Rank and select the number of worst agents using Eq. 11
         N_w = int(self.pop_size * (np.random.uniform(0, 0.1) + 0.1))
         ## Update the position of the worst agents using Eq. 12
-        sorted_id_pos = np.argsort([x[self.ID_FIT][self.ID_TAR] for x in self.pop])
+        sorted_id_pos = np.argsort([x[self.ID_TAR][self.ID_FIT] for x in self.pop])
 
         pop_new = []
         pop_idx = []
         for item in range(N_w):
             id = sorted_id_pos[item]
             X_new = np.random.uniform(self.problem.lb, self.problem.ub)
-            pos_new = self.amend_position_faster(X_new)
+            pos_new = self.amend_position(X_new)
             pop_new.append([pos_new, None])
             pop_idx.append(id)
             nfe_epoch += 1

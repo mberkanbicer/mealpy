@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-# ------------------------------------------------------------------------------------------------------%
-# Created by "Thieu" at 16:10, 08/07/2021                                                               %
-#                                                                                                       %
-#       Email:      nguyenthieu2102@gmail.com                                                           %
-#       Homepage:   https://www.researchgate.net/profile/Nguyen_Thieu2                                  %
-#       Github:     https://github.com/thieu1995                                                        %
-# ------------------------------------------------------------------------------------------------------%
+# !/usr/bin/env python
+# Created by "Thieu" at 16:10, 08/07/2021 ----------%
+#       Email: nguyenthieu2102@gmail.com            %
+#       Github: https://github.com/thieu1995        %
+# --------------------------------------------------%
 
 import numpy as np
 from copy import deepcopy
@@ -15,29 +12,70 @@ from mealpy.optimizer import Optimizer
 class OriginalArchOA(Optimizer):
     """
     The original version of: Archimedes Optimization Algorithm (ArchOA)
-        (Archimedes optimization algorithm: a new metaheuristic algorithm for solving optimization problems)
-    Link:
-        https://doi.org/10.1007/s10489-020-01893-z
+
+    Links:
+        1. https://doi.org/10.1007/s10489-020-01893-z
+
+    Hyper-parameters should fine tuned in approximate range to get faster convergen toward the global optimum:
+        + c1 (int): factor, default belongs to [1, 2]
+        + c2 (int): factor, Default belongs to [2, 4, 6]
+        + c3 (int): factor, Default belongs to [1, 2]
+        + c4 (float): factor, Default belongs to [0.5, 1]
+        + acc_max (float): acceleration max, Default 0.9
+        + acc_min (float): acceleration min, Default 0.1
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.physics_based.ArchOA import OriginalArchOA
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> c1 = 2
+    >>> c2 = 5
+    >>> c3 = 2
+    >>> c4 = 0.5
+    >>> acc_max = 0.9
+    >>> acc_min = 0.1
+    >>> model = OriginalArchOA(problem_dict1, epoch, pop_size, c1, c2, c3, c4, acc_max, acc_min)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+
+    References
+    ~~~~~~~~~~
+    [1] Hashim, F.A., Hussain, K., Houssein, E.H., Mabrouk, M.S. and Al-Atabany, W., 2021. Archimedes optimization
+    algorithm: a new metaheuristic algorithm for solving optimization problems. Applied Intelligence, 51(3), pp.1531-1551.
     """
+
     ID_POS = 0
-    ID_FIT = 1
+    ID_TAR = 1
     ID_DEN = 2  # Density
     ID_VOL = 3  # Volume
     ID_ACC = 4  # Acceleration
 
-    def __init__(self, problem, epoch=10000, pop_size=100, c1=2, c2=6, c3=2, c4=0.5, acc_upper=0.9, acc_lower=0.1, **kwargs):
+    def __init__(self, problem, epoch=10000, pop_size=100, c1=2, c2=6, c3=2, c4=0.5, acc_max=0.9, acc_min=0.1, **kwargs):
         """
         Args:
-            problem ():
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
-            c1 (int): Default belongs [1, 2]
-            c2 (int): Default belongs [2, 4, 6]
-            c3 (int): Default belongs [1, 2]
-            c4 (float): Default belongs [0.5, 1]
-            acc_upper (float): Default 0.9
-            acc_lower (float): Default 0.1
-            **kwargs ():
+            c1 (int): factor, default belongs [1, 2]
+            c2 (int): factor, Default belongs [2, 4, 6]
+            c3 (int): factor, Default belongs [1, 2]
+            c4 (float): factor, Default belongs [0.5, 1]
+            acc_max (float): acceleration max, Default 0.9
+            acc_min (float): acceleration min, Default 0.1
         """
         super().__init__(problem, kwargs)
         self.nfe_per_epoch = pop_size
@@ -49,22 +87,22 @@ class OriginalArchOA(Optimizer):
         self.c2 = c2
         self.c3 = c3
         self.c4 = c4
-        self.acc_upper = acc_upper
-        self.acc_lower = acc_lower
+        self.acc_max = acc_max
+        self.acc_min = acc_min
 
     def create_solution(self):
         """
-        Returns:
-            The position position with 2 element: index of position/location and index of fitness wrapper
-            The general format: [position, [target, [obj1, obj2, ...]], density, volume, acceleration]
+        To get the position, fitness wrapper, target and obj list
+            + A[self.ID_POS]                  --> Return: position
+            + A[self.ID_TAR]                  --> Return: [target, [obj1, obj2, ...]]
+            + A[self.ID_TAR][self.ID_FIT]     --> Return: target
+            + A[self.ID_TAR][self.ID_OBJ]     --> Return: [obj1, obj2, ...]
 
-        ## To get the position, fitness wrapper, target and obj list
-        ##      A[self.ID_POS]                  --> Return: position
-        ##      A[self.ID_FIT]                  --> Return: [target, [obj1, obj2, ...]]
-        ##      A[self.ID_FIT][self.ID_TAR]     --> Return: target
-        ##      A[self.ID_FIT][self.ID_OBJ]     --> Return: [obj1, obj2, ...]
+        Returns:
+            list: wrapper of solution with format [position, [target, [obj1, obj2, ...]], density, volume, acceleration]
         """
         position = np.random.uniform(self.problem.lb, self.problem.ub)
+        position = self.amend_position(position)
         fitness = self.get_fitness_position(position=position)
         den = np.random.uniform(self.problem.lb, self.problem.ub)
         vol = np.random.uniform(self.problem.lb, self.problem.ub)
@@ -73,6 +111,8 @@ class OriginalArchOA(Optimizer):
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
@@ -102,7 +142,7 @@ class OriginalArchOA(Optimizer):
         max_acc = np.max(list_acc)
         ## Normalize acceleration using Eq. 12
         for i in range(0, self.pop_size):
-            self.pop[i][self.ID_ACC] = self.acc_upper * (self.pop[i][self.ID_ACC] - min_acc) / (max_acc - min_acc) + self.acc_lower
+            self.pop[i][self.ID_ACC] = self.acc_max * (self.pop[i][self.ID_ACC] - min_acc) / (max_acc - min_acc) + self.acc_min
 
         pop_new = []
         for idx in range(0, self.pop_size):
@@ -117,7 +157,7 @@ class OriginalArchOA(Optimizer):
                 t = self.c3 * tf
                 pos_new = self.g_best[self.ID_POS] + f * self.c2 * np.random.rand() * self.pop[idx][self.ID_ACC] * \
                           ddf * (t * self.g_best[self.ID_POS] - self.pop[idx][self.ID_POS])
-            solution[self.ID_POS] = self.amend_position_faster(pos_new)
+            solution[self.ID_POS] = self.amend_position(pos_new)
             pop_new.append(solution)
         pop_new = self.update_fitness_population(pop_new)
         self.pop = self.greedy_selection_population(self.pop, pop_new)

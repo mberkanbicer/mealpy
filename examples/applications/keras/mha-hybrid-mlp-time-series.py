@@ -1,14 +1,10 @@
-#!/usr/bin/env python
-# ------------------------------------------------------------------------------------------------------%
-# Created by "Thieu" at 18:49, 13/12/2021                                                               %
-#                                                                                                       %
-#       Email:      nguyenthieu2102@gmail.com                                                           %
-#       Homepage:   https://www.researchgate.net/profile/Nguyen_Thieu2                                  %
-#       Github:     https://github.com/thieu1995                                                        %
-# ------------------------------------------------------------------------------------------------------%
+# !/usr/bin/env python
+# Created by "Thieu" at 18:49, 13/12/2021 ----------%
+#       Email: nguyenthieu2102@gmail.com            %
+#       Github: https://github.com/thieu1995        %
+# --------------------------------------------------%
 
 ## Time-series Prediction problem using Metaheuristic Algorithm to train Neural Network (Replace the Gradient Descent Optimizer)
-
 
 # 1. Fitness function
 # 2. Lower bound and upper bound of variables
@@ -65,7 +61,7 @@ class HybridMlp:
         self.n_inputs = self.X_train.shape[1]
         self.n_dims = (self.n_inputs * self.n_hidden_nodes) + self.n_hidden_nodes + (self.n_hidden_nodes * 1) + 1
         self.problem = {
-            "obj_func": self.objective_function,
+            "fit_func": self.fitness_function,
             "lb": [-1, ] * self.n_dims,
             "ub": [1, ] * self.n_dims,
             "minmax": "min",
@@ -100,7 +96,7 @@ class HybridMlp:
             cut_point += ws[1]
         self.model.set_weights(weights)
 
-    def objective_function(self, solution):
+    def fitness_function(self, solution):
         ## Training score and Testing score for fitness function
         ## with the weight: [0.3, 0.7]
         self.decode_solution(solution)

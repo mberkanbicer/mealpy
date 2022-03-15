@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-# ------------------------------------------------------------------------------------------------------%
-# Created by "Thieu Nguyen" at 07:02, 18/03/2020                                                        %
-#                                                                                                       %
-#       Email:      nguyenthieu2102@gmail.com                                                           %
-#       Homepage:   https://www.researchgate.net/profile/Thieu_Nguyen6                                  %
-#       Github:     https://github.com/thieu1995                                                        %
-#-------------------------------------------------------------------------------------------------------%
+# !/usr/bin/env python
+# Created by "Thieu" at 07:02, 18/03/2020 ----------%
+#       Email: nguyenthieu2102@gmail.com            %
+#       Github: https://github.com/thieu1995        %
+# --------------------------------------------------%
 
 import numpy as np
 import math
@@ -16,19 +13,47 @@ from mealpy.optimizer import Optimizer
 class BaseNRO(Optimizer):
     """
     The original version of: Nuclear Reaction Optimization (NRO)
-        An Approach Inspired from Nuclear Reaction Processes for Numerical Optimization
-        Nuclear Reaction Optimization: A novel and powerful physics-based algorithm for global optimization
-    Link:
-        https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=8720256
+
+    Links:
+        1. https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=8720256
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.physics_based.NRO import BaseNRO
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> model = BaseNRO(problem_dict1, epoch, pop_size)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+
+    References
+    ~~~~~~~~~~
+    [1] Wei, Z., Huang, C., Wang, X., Han, T. and Li, Y., 2019. Nuclear reaction optimization: A novel and
+    powerful physics-based algorithm for global optimization. IEEE Access, 7, pp.66084-66109.
+    [2] Wei, Z.L., Zhang, Z.R., Huang, C.Q., Han, B., Tang, S.Q. and Wang, L., 2019, June. An Approach
+    Inspired from Nuclear Reaction Processes for Numerical Optimization. In Journal of Physics:
+    Conference Series (Vol. 1213, No. 3, p. 032009). IOP Publishing.
     """
 
     def __init__(self, problem, epoch=10000, pop_size=100, **kwargs):
         """
         Args:
-            problem ():
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
-            **kwargs ():
         """
         super().__init__(problem, kwargs)
         self.nfe_per_epoch = 3 * pop_size
@@ -37,8 +62,23 @@ class BaseNRO(Optimizer):
         self.epoch = epoch
         self.pop_size = pop_size
 
+    def amend_position(self, position=None):
+        """
+        If solution out of bound at dimension x, then it will re-arrange to random location in the range of domain
+
+        Args:
+            position: vector position (location) of the solution.
+
+        Returns:
+            Amended position
+        """
+        return np.where(np.logical_and(self.problem.lb <= position, position <= self.problem.ub),
+                        position, np.random.uniform(self.problem.lb, self.problem.ub))
+
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
@@ -79,7 +119,7 @@ class BaseNRO(Optimizer):
                 Xi = np.array([np.random.normal(self.pop[i][self.ID_POS][j], xichma2[j]) for j in range(self.problem.n_dims)])
 
             ## Check the boundary and evaluate the fitness function
-            Xi = self.amend_position_random(Xi)
+            Xi = self.amend_position(Xi)
             pop_new.append([Xi, None])
         pop_new = self.update_fitness_population(pop_new)
         pop_new = self.greedy_selection_population(self.pop, pop_new)
@@ -89,7 +129,7 @@ class BaseNRO(Optimizer):
         ## Ionization stage
         ## Calculate the Pa through Eq. (10)
         pop_child = []
-        ranked_pop = np.argsort([pop_new[i][self.ID_FIT][self.ID_TAR] for i in range(self.pop_size)])
+        ranked_pop = np.argsort([pop_new[i][self.ID_TAR][self.ID_FIT] for i in range(self.pop_size)])
         for i in range(self.pop_size):
             X_ion = deepcopy(pop_new[i][self.ID_POS])
             if (ranked_pop[i] * 1.0 / self.pop_size) < np.random.random():
@@ -118,7 +158,7 @@ class BaseNRO(Optimizer):
                                    (X_worst[self.ID_POS][j] - self.g_best[self.ID_POS][j])
 
             ## Check the boundary and evaluate the fitness function for X_ion
-            X_ion = self.amend_position_random(X_ion)
+            X_ion = self.amend_position(X_ion)
             pop_child.append([X_ion, None])
         pop_child = self.update_fitness_population(pop_child)
         pop_child = self.greedy_selection_population(pop_new, pop_child)
@@ -127,7 +167,7 @@ class BaseNRO(Optimizer):
 
         ### all ions obtained from ionization are ranked based on (14) - Calculate the Pc through Eq. (14)
         pop_new = []
-        ranked_pop = np.argsort([pop_child[i][self.ID_FIT][self.ID_TAR] for i in range(self.pop_size)])
+        ranked_pop = np.argsort([pop_child[i][self.ID_TAR][self.ID_FIT] for i in range(self.pop_size)])
         for i in range(self.pop_size):
             i1, i2 = np.random.choice(list(set(range(0, self.pop_size)) - {i}), 2, replace=False)
 
@@ -147,11 +187,12 @@ class BaseNRO(Optimizer):
                 else:
                     if np.random.uniform() > 0.5:
                         X_fu = pop_child[i][self.ID_POS] - 0.5 * (np.sin(2 * np.pi * freq * epoch + np.pi) *
-                                    (self.epoch - epoch) / self.epoch + 1) * (pop_child[i1][self.ID_POS] - pop_child[i2][self.ID_POS])
+                                                                  (self.epoch - epoch) / self.epoch + 1) * (
+                                           pop_child[i1][self.ID_POS] - pop_child[i2][self.ID_POS])
                     else:
                         X_fu = pop_child[i][self.ID_POS] - 0.5 * (np.sin(2 * np.pi * freq * epoch + np.pi) * epoch / self.epoch + 1) * \
                                (pop_child[i1][self.ID_POS] - pop_child[i2][self.ID_POS])
-            X_fu = self.amend_position_random(X_fu)
+            X_fu = self.amend_position(X_fu)
             pop_new.append([X_fu, None])
         pop_new = self.update_fitness_population(pop_new)
         self.pop = self.greedy_selection_population(pop_child, pop_new)

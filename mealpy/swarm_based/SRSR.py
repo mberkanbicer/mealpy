@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-# ------------------------------------------------------------------------------------------------------%
-# Created by "Thieu Nguyen" at 14:51, 17/03/2020                                                        %
-#                                                                                                       %
-#       Email:      nguyenthieu2102@gmail.com                                                           %
-#       Homepage:   https://www.researchgate.net/profile/Thieu_Nguyen6                                  %
-#       Github:     https://github.com/thieu1995                                                        %
-#-------------------------------------------------------------------------------------------------------%
+# !/usr/bin/env python
+# Created by "Thieu" at 14:51, 17/03/2020 ----------%
+#       Email: nguyenthieu2102@gmail.com            %
+#       Github: https://github.com/thieu1995        %
+# --------------------------------------------------%
 
 import numpy as np
 from copy import deepcopy
@@ -14,13 +11,41 @@ from mealpy.optimizer import Optimizer
 
 class BaseSRSR(Optimizer):
     """
-        The original version of: Swarm Robotics Search And Rescue (SRSR)
-            Swarm Robotics Search And Rescue: A Novel Artificial Intelligence-inspired Optimization Approach
-        Link:
-            https://doi.org/10.1016/j.asoc.2017.02.028
+    The original version of: Swarm Robotics Search And Rescue (SRSR)
+
+    Links:
+        1. https://doi.org/10.1016/j.asoc.2017.02.028
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.swarm_based.SRSR import BaseSRSR
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> model = BaseSRSR(problem_dict1, epoch, pop_size)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+
+    References
+    ~~~~~~~~~~
+    [1] Bakhshipour, M., Ghadi, M.J. and Namdari, F., 2017. Swarm robotics search & rescue: A novel
+    artificial intelligence-inspired optimization approach. Applied Soft Computing, 57, pp.708-726.
     """
+
     ID_POS = 0
-    ID_FIT = 1
+    ID_TAR = 1
     ID_MU = 2
     ID_SIGMA = 3
     ID_POS_NEW = 4
@@ -30,13 +55,9 @@ class BaseSRSR(Optimizer):
     def __init__(self, problem, epoch=10000, pop_size=100, **kwargs):
         """
         Args:
-            problem ():
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
-            r_a (float): the rate of vibration attenuation when propagating over the spider web, default=1.0
-            p_c (float): controls the probability of the spiders changing their dimension mask in the random walk step, default=0.7
-            p_m (float): the probability of each value in a dimension mask to be one, default=0.1
-            **kwargs ():
         """
         super().__init__(problem, kwargs)
         self.nfe_per_epoch = pop_size
@@ -47,17 +68,17 @@ class BaseSRSR(Optimizer):
 
     def create_solution(self):
         """
-        Returns:
-            The position position with 2 element: index of position/location and index of fitness wrapper
-            The general format: [position, [target, [obj1, obj2, ...]]]
+        To get the position, fitness wrapper, target and obj list
+            + A[self.ID_POS]                  --> Return: position
+            + A[self.ID_TAR]                  --> Return: [target, [obj1, obj2, ...]]
+            + A[self.ID_TAR][self.ID_FIT]     --> Return: target
+            + A[self.ID_TAR][self.ID_OBJ]     --> Return: [obj1, obj2, ...]
 
-        ## To get the position, fitness wrapper, target and obj list
-        ##      A[self.ID_POS]                  --> Return: position
-        ##      A[self.ID_FIT]                  --> Return: [target, [obj1, obj2, ...]]
-        ##      A[self.ID_FIT][self.ID_TAR]     --> Return: target
-        ##      A[self.ID_FIT][self.ID_OBJ]     --> Return: [obj1, obj2, ...]
+        Returns:
+            list: wrapper of solution with format [position, [target, [obj1, obj2, ...]], mu, sigma, x_new, fit_new, fit_move]
         """
         position = np.random.uniform(self.problem.lb, self.problem.ub)
+        position = self.amend_position(position)
         fitness = self.get_fitness_position(position=position)
         mu = 0
         sigma = 0
@@ -85,6 +106,8 @@ class BaseSRSR(Optimizer):
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
@@ -108,28 +131,27 @@ class BaseSRSR(Optimizer):
                 self.SIF = 6
             self.sigma_temp[i] = self.SIF * np.random.uniform()
             self.pop[i][self.ID_SIGMA] = self.sigma_temp[i] * abs(self.pop[0][self.ID_POS] - self.pop[i][self.ID_POS]) + \
-                                    np.random.uniform() ** 2 * ((self.pop[0][self.ID_POS] - self.pop[i][self.ID_POS]) < 0.05)
+                                         np.random.uniform() ** 2 * ((self.pop[0][self.ID_POS] - self.pop[i][self.ID_POS]) < 0.05)
 
             # ----- Generating New Positions Using New Obtained Mu And Sigma Values --------------
-            temp = np.random.normal(self.pop[i][self.ID_MU], self.pop[i][self.ID_SIGMA], self.problem.n_dims)
-            pos_new = np.clip(temp, self.problem.lb, self.problem.ub)
-            agent[self.ID_POS] = pos_new
+            pos_new = np.random.normal(self.pop[i][self.ID_MU], self.pop[i][self.ID_SIGMA], self.problem.n_dims)
+            agent[self.ID_POS] = self.amend_position(pos_new)
             pop_new.append(agent)
         pop_new = self.update_fitness_population(pop_new)
         nfe_epoch += self.pop_size
 
         for idx in range(0, self.pop_size):
             # --------- Calculate Degree Of Cost Movement Of Robots During Movement --------------
-            self.pop[idx][self.ID_FIT_MOVE] = self.pop[idx][self.ID_FIT][self.ID_TAR] - self.pop[idx][self.ID_FIT_NEW][self.ID_TAR]
+            self.pop[idx][self.ID_FIT_MOVE] = self.pop[idx][self.ID_TAR][self.ID_FIT] - self.pop[idx][self.ID_FIT_NEW][self.ID_FIT]
 
             self.pop[idx][self.ID_POS_NEW] = deepcopy(pop_new[idx][self.ID_POS])
-            self.pop[idx][self.ID_FIT_NEW] = deepcopy(pop_new[idx][self.ID_FIT])
+            self.pop[idx][self.ID_FIT_NEW] = deepcopy(pop_new[idx][self.ID_TAR])
 
             # ---------- Progress Assessment: Replacing More Quality Solutions With Previous Ones ------
             # Replace Solution If It Reached To A More Quality Position
             if self.compare_agent(pop_new[idx], self.pop[idx]):
                 self.pop[idx][self.ID_POS] = deepcopy(pop_new[idx][self.ID_POS])
-                self.pop[idx][self.ID_FIT] = deepcopy(pop_new[idx][self.ID_FIT])
+                self.pop[idx][self.ID_TAR] = deepcopy(pop_new[idx][self.ID_TAR])
 
         # --------- Determining Sigma Improvement Factor (Sif) Based On Vvss Movement -------------------
         ## Get best improved fitness
@@ -149,26 +171,25 @@ class BaseSRSR(Optimizer):
             gb = np.random.uniform(-1, 1, self.problem.n_dims)
             gb[gb >= 0] = 1
             gb[gb < 0] = -1
-            temp = self.pop[i][self.ID_POS] * np.random.uniform() + gb * (self.pop[0][self.ID_POS] - self.pop[i][self.ID_POS]) + \
+            pos_new = self.pop[i][self.ID_POS] * np.random.uniform() + gb * (self.pop[0][self.ID_POS] - self.pop[i][self.ID_POS]) + \
                    self.movement_factor * np.random.uniform(self.problem.lb, self.problem.ub)
-            pos_new = np.clip(temp, self.problem.lb, self.problem.ub)
-            agent[self.ID_POS] = pos_new
+            agent[self.ID_POS] = self.amend_position(pos_new)
             pop_new.append(agent)
         pop_new = self.update_fitness_population(pop_new)
         nfe_epoch += self.pop_size
 
         for idx in range(0, self.pop_size):
             # --------- Calculate Degree Of Cost Movement Of Robots During Movement --------------
-            self.pop[idx][self.ID_FIT_MOVE] = self.pop[idx][self.ID_FIT][self.ID_TAR] - self.pop[idx][self.ID_FIT_NEW][self.ID_TAR]
+            self.pop[idx][self.ID_FIT_MOVE] = self.pop[idx][self.ID_TAR][self.ID_FIT] - self.pop[idx][self.ID_FIT_NEW][self.ID_FIT]
 
             self.pop[idx][self.ID_POS_NEW] = deepcopy(pop_new[idx][self.ID_POS])
-            self.pop[idx][self.ID_FIT_NEW] = deepcopy(pop_new[idx][self.ID_FIT])
+            self.pop[idx][self.ID_FIT_NEW] = deepcopy(pop_new[idx][self.ID_TAR])
 
             # ---------- Progress Assessment: Replacing More Quality Solutions With Previous Ones ------
             # Replace Solution If It Reached To A More Quality Position
             if self.compare_agent(pop_new[idx], self.pop[idx]):
                 self.pop[idx][self.ID_POS] = deepcopy(pop_new[idx][self.ID_POS])
-                self.pop[idx][self.ID_FIT] = deepcopy(pop_new[idx][self.ID_FIT])
+                self.pop[idx][self.ID_TAR] = deepcopy(pop_new[idx][self.ID_TAR])
 
         # ========================================================================================= %%
         #        PHASE 3 (LOCAL SEARCH): CREATING SOME WORKER ROBOTS ASSIGNED TO SEARCH               %
@@ -182,7 +203,7 @@ class BaseSRSR(Optimizer):
                             "abs": deepcopy(np.reshape(abs(self.pop[0][self.ID_POS]), (self.problem.n_dims, 1))),
                             "int": deepcopy(np.reshape(np.floor(abs(self.pop[0][self.ID_POS])), (self.problem.n_dims, 1))),  # INTEGER PART
                             "frac": deepcopy(np.reshape(abs(self.pop[0][self.ID_POS]) - np.floor(abs(self.pop[0][self.ID_POS])), (self.problem.n_dims, 1)))
-                            }                    # FRACTIONAL PART
+                            }  # FRACTIONAL PART
 
             # ------- Applying Nth-root And Nth-exponent Operators To Create Position Of New Worker Robots -------
             worker_robot1 = (master_robot["int"] + np.power(master_robot["frac"], 1 / (1 + np.random.randint(1, 4)))) * master_robot["sign"]
@@ -203,7 +224,7 @@ class BaseSRSR(Optimizer):
             sec2 = random_per_mutation[int(self.problem.n_dims / 2):]
             worker_robot3 = np.zeros((self.problem.n_dims, 1))
             worker_robot3[sec1] = (master_robot["int"][sec1] + np.power(master_robot["frac"][sec1],
-                                    1 / (1 + np.random.randint(1, 4)))) * master_robot["sign"][sec1]
+                                                                        1 / (1 + np.random.randint(1, 4)))) * master_robot["sign"][sec1]
             worker_robot3[sec2] = (master_robot["int"][sec2] + master_robot["frac"][sec2] **
                                    (1 + np.random.randint(1, 4))) * master_robot["sign"][sec2]
             id_changed3 = np.argwhere(np.round(np.random.uniform(self.problem.lb, self.problem.ub)))
@@ -225,13 +246,13 @@ class BaseSRSR(Optimizer):
             workers = np.concatenate((worker_robot1.T, worker_robot2.T, worker_robot3.T, worker_robot4.T, worker_robot5.T), axis=0)
             pop_workers = []
             for i in range(0, 5):
-                workers[i] = np.clip(workers[i], self.problem.lb, self.problem.ub)
-                pop_workers.append([workers[i], None])
+                pos_new = self.amend_position(workers[i])
+                pop_workers.append([pos_new, None])
             pop_workers = self.update_fitness_population(pop_workers)
             nfe_epoch += 5
 
             for i in range(0, 5):
                 if self.compare_agent(pop_workers[i], self.pop[1]):
                     self.pop[-(i + 1)][self.ID_POS] = deepcopy(pop_workers[i][self.ID_POS])
-                    self.pop[-(i + 1)][self.ID_FIT] = deepcopy(pop_workers[i][self.ID_FIT])
+                    self.pop[-(i + 1)][self.ID_TAR] = deepcopy(pop_workers[i][self.ID_TAR])
             self.nfe_per_epoch = nfe_epoch

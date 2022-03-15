@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-# ------------------------------------------------------------------------------------------------------%
-# Created by "Thieu Nguyen" at 10:21, 18/03/2020                                                        %
-#                                                                                                       %
-#       Email:      nguyenthieu2102@gmail.com                                                           %
-#       Homepage:   https://www.researchgate.net/profile/Thieu_Nguyen6                                  %
-#       Github:     https://github.com/thieu1995                                                        %
-#-------------------------------------------------------------------------------------------------------%
+# !/usr/bin/env python
+# Created by "Thieu" at 10:21, 18/03/2020 ----------%
+#       Email: nguyenthieu2102@gmail.com            %
+#       Github: https://github.com/thieu1995        %
+# --------------------------------------------------%
 
 import numpy as np
 from copy import deepcopy
@@ -14,23 +11,41 @@ from mealpy.optimizer import Optimizer
 
 class BaseQSA(Optimizer):
     """
-    My version of: Queuing search algorithm (QSA)
-        (Queuing search algorithm: A novel metaheuristic algorithm for solving engineering optimization problems)
-    Link:
-        https://www.sciencedirect.com/science/article/abs/pii/S0307904X18302890
-    Notes:
-        + Remove all third loop
-        + Using g_best solution in business 3 instead of random solution
+    My changed version of: Queuing Search Algorithm (QSA)
+
+    Notes
+    ~~~~~
+    All third loop is removed, the global best solution is used in business 3 instead of random solution
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.human_based.QSA import BaseQSA
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> model = BaseQSA(problem_dict1, epoch, pop_size)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
     """
 
     def __init__(self, problem, epoch=10000, pop_size=100, **kwargs):
         """
-
         Args:
-            problem ():
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
-            **kwargs ():
         """
         super().__init__(problem, kwargs)
         self.nfe_per_epoch = 3 * pop_size
@@ -40,10 +55,11 @@ class BaseQSA(Optimizer):
         self.pop_size = pop_size
 
     def _calculate_queue_length__(self, t1, t2, t3):
-        """ Calculate length of each queue based on  t1, t2,t3
-                t1 = t1 * 1.0e+100
-                t2 = t2 * 1.0e+100
-                t3 = t3 * 1.0e+100
+        """
+        Calculate length of each queue based on  t1, t2,t3
+            + t1 = t1 * 1.0e+100
+            + t2 = t2 * 1.0e+100
+            + t3 = t3 * 1.0e+100
         """
         if t1 > 1.0e-6:
             n1 = (1 / t1) / ((1 / t1) + (1 / t2) + (1 / t3))
@@ -58,7 +74,7 @@ class BaseQSA(Optimizer):
 
     def _update_business_1(self, pop=None, current_epoch=None):
         A1, A2, A3 = pop[0][self.ID_POS], pop[1][self.ID_POS], pop[2][self.ID_POS]
-        t1, t2, t3 = pop[0][self.ID_FIT][self.ID_TAR], pop[1][self.ID_FIT][self.ID_TAR], pop[2][self.ID_FIT][self.ID_TAR]
+        t1, t2, t3 = pop[0][self.ID_TAR][self.ID_FIT], pop[1][self.ID_TAR][self.ID_FIT], pop[2][self.ID_TAR][self.ID_FIT]
         q1, q2, q3 = self._calculate_queue_length__(t1, t2, t3)
         case = None
         for i in range(self.pop_size):
@@ -81,7 +97,7 @@ class BaseQSA(Optimizer):
             F2 = beta * alpha * (E * np.abs(A - pop[i][self.ID_POS]))
             if case == 1:
                 pos_new = A + F1
-                pos_new = self.amend_position_faster(pos_new)
+                pos_new = self.amend_position(pos_new)
                 fit_new = self.get_fitness_position(pos_new)
                 if self.compare_agent([pos_new, fit_new], pop[i]):
                     pop[i] = [pos_new, fit_new]
@@ -89,7 +105,7 @@ class BaseQSA(Optimizer):
                     case = 2
             else:
                 pos_new = pop[i][self.ID_POS] + F2
-                pos_new = self.amend_position_faster(pos_new)
+                pos_new = self.amend_position(pos_new)
                 fit_new = self.get_fitness_position(pos_new)
                 if self.compare_agent([pos_new, fit_new], pop[i]):
                     pop[i] = [pos_new, fit_new]
@@ -100,7 +116,7 @@ class BaseQSA(Optimizer):
 
     def _update_business_2(self, pop=None):
         A1, A2, A3 = pop[0][self.ID_POS], pop[1][self.ID_POS], pop[2][self.ID_POS]
-        t1, t2, t3 = pop[0][self.ID_FIT][self.ID_TAR], pop[1][self.ID_FIT][self.ID_TAR], pop[2][self.ID_FIT][self.ID_TAR]
+        t1, t2, t3 = pop[0][self.ID_TAR][self.ID_FIT], pop[1][self.ID_TAR][self.ID_FIT], pop[2][self.ID_TAR][self.ID_FIT]
         q1, q2, q3 = self._calculate_queue_length__(t1, t2, t3)
         pr = [i / self.pop_size for i in range(1, self.pop_size + 1)]
         if t1 > 1.0e-005:
@@ -121,9 +137,9 @@ class BaseQSA(Optimizer):
                     X_new = pop[i][self.ID_POS] + np.random.exponential(0.5) * (pop[i1][self.ID_POS] - pop[i2][self.ID_POS])
                 else:
                     X_new = pop[i][self.ID_POS] + np.random.exponential(0.5) * (A - pop[i1][self.ID_POS])
-                pos_new = self.amend_position_faster(X_new)
             else:
-                pos_new = np.random.uniform(self.problem.lb, self.problem.ub)
+                X_new = np.random.uniform(self.problem.lb, self.problem.ub)
+            pos_new = self.amend_position(X_new)
             pop_new.append([pos_new, None])
         pop_new = self.update_fitness_population(pop_new)
         pop = self.greedy_selection_population(pop, pop_new)
@@ -138,7 +154,7 @@ class BaseQSA(Optimizer):
             id1 = np.random.choice(self.pop_size)
             temp = g_best[self.ID_POS] + np.random.exponential(0.5, self.problem.n_dims) * (pop[id1][self.ID_POS] - pop[i][self.ID_POS])
             X_new = np.where(np.random.random(self.problem.n_dims) > pr[i], temp, X_new)
-            pos_new = self.amend_position_faster(X_new)
+            pos_new = self.amend_position(X_new)
             pop_new.append([pos_new, None])
         pop_new = self.update_fitness_population(pop_new)
         pop_new = self.greedy_selection_population(pop, pop_new)
@@ -146,6 +162,8 @@ class BaseQSA(Optimizer):
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
@@ -155,15 +173,42 @@ class BaseQSA(Optimizer):
 
 
 class OppoQSA(BaseQSA):
+    """
+    My Opposition-based learning version of: Queuing Search Algorithm (OQSA)
+
+    Notes
+    ~~~~~
+    Added the opposition-based learning technique
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.human_based.QSA import OppoQSA
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> model = OppoQSA(problem_dict1, epoch, pop_size)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+    """
 
     def __init__(self, problem, epoch=10000, pop_size=100, **kwargs):
         """
-
         Args:
-            problem ():
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
-            **kwargs ():
         """
         super().__init__(problem, epoch, pop_size, **kwargs)
         self.nfe_per_epoch = 4 * pop_size
@@ -174,32 +219,61 @@ class OppoQSA(BaseQSA):
         pop_new = []
         for i in range(0, self.pop_size):
             X_new = self.create_opposition_position(pop[i], g_best)
-            pos_new = self.amend_position_faster(X_new)
+            pos_new = self.amend_position(X_new)
             pop_new.append([pos_new, None])
         pop_new = self.update_fitness_population(pop_new)
         return self.greedy_selection_population(pop, pop_new)
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
-        pop = self._update_business_1(self.pop, epoch+1)
+        pop = self._update_business_1(self.pop, epoch + 1)
         pop = self._update_business_2(pop)
         pop = self._update_business_3(pop, self.g_best)
         self.pop = self._opposition_based(pop, self.g_best)
 
 
 class LevyQSA(BaseQSA):
+    """
+    My Levy-flight version of: Queuing Search Algorithm (LQSA)
+
+    Notes
+    ~~~~~
+    Added the Levy-flight technique to QSA
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.human_based.QSA import LevyQSA
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> model = LevyQSA(problem_dict1, epoch, pop_size)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+    """
 
     def __init__(self, problem, epoch=10000, pop_size=100, **kwargs):
         """
-
         Args:
-            problem ():
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
-            **kwargs ():
         """
         super().__init__(problem, epoch, pop_size, **kwargs)
         self.nfe_per_epoch = 3 * pop_size
@@ -207,7 +281,7 @@ class LevyQSA(BaseQSA):
 
     def _update_business_2(self, pop=None, current_epoch=None):
         A1, A2, A3 = pop[0][self.ID_POS], pop[1][self.ID_POS], pop[2][self.ID_POS]
-        t1, t2, t3 = pop[0][self.ID_FIT][self.ID_TAR], pop[1][self.ID_FIT][self.ID_TAR], pop[2][self.ID_FIT][self.ID_TAR]
+        t1, t2, t3 = pop[0][self.ID_TAR][self.ID_FIT], pop[1][self.ID_TAR][self.ID_FIT], pop[2][self.ID_TAR][self.ID_FIT]
         q1, q2, q3 = self._calculate_queue_length__(t1, t2, t3)
         pr = [i / self.pop_size for i in range(1, self.pop_size + 1)]
         if t1 > 1.0e-6:
@@ -223,16 +297,17 @@ class LevyQSA(BaseQSA):
             else:
                 A = deepcopy(A3)
             if np.random.random() < pr[i]:
-                id1= np.random.choice(self.pop_size)
+                id1 = np.random.choice(self.pop_size)
                 if np.random.random() < cv:
                     levy_step = self.get_levy_flight_step(beta=1.0, multiplier=0.001, case=-1)
                     X_new = pop[i][self.ID_POS] + np.random.normal(0, 1, self.problem.n_dims) * levy_step
                 else:
                     X_new = pop[i][self.ID_POS] + np.random.exponential(0.5) * (A - pop[id1][self.ID_POS])
-                pos_new = self.amend_position_faster(X_new)
+                pos_new = self.amend_position(X_new)
             else:
                 pos_new = np.random.uniform(self.problem.lb, self.problem.ub)
-            pop_new.append([pos_new , None])
+            pos_new = self.amend_position(pos_new)
+            pop_new.append([pos_new, None])
         pop_new = self.update_fitness_population(pop_new)
         pop_new = self.greedy_selection_population(pop, pop_new)
         pop_new, _ = self.get_global_best_solution(pop_new)
@@ -240,6 +315,8 @@ class LevyQSA(BaseQSA):
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
@@ -249,15 +326,46 @@ class LevyQSA(BaseQSA):
 
 
 class ImprovedQSA(OppoQSA, LevyQSA):
+    """
+    The original version of: Improved Queuing Search Algorithm (QSA)
+
+    Links:
+       1. https://doi.org/10.1007/s12652-020-02849-4
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.human_based.QSA import ImprovedQSA
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> model = ImprovedQSA(problem_dict1, epoch, pop_size)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+
+    References
+    ~~~~~~~~~~
+    [1] Nguyen, B.M., Hoang, B., Nguyen, T. and Nguyen, G., 2021. nQSV-Net: a novel queuing search variant for
+    global space search and workload modeling. Journal of Ambient Intelligence and Humanized Computing, 12(1), pp.27-46.
+    """
 
     def __init__(self, problem, epoch=10000, pop_size=100, **kwargs):
         """
-
         Args:
-            problem ():
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
-            **kwargs ():
         """
         super().__init__(problem, epoch, pop_size, **kwargs)
         self.nfe_per_epoch = 4 * pop_size
@@ -265,6 +373,8 @@ class ImprovedQSA(OppoQSA, LevyQSA):
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
@@ -276,20 +386,45 @@ class ImprovedQSA(OppoQSA, LevyQSA):
 
 class OriginalQSA(BaseQSA):
     """
-    The original version of: Queuing search algorithm (QSA)
-        (Queuing search algorithm: A novel metaheuristic algorithm for solving engineering optimization problems)
-    Link:
-        https://www.sciencedirect.com/science/article/abs/pii/S0307904X18302890
+    The original version of: Queuing Search Algorithm (QSA)
+
+    Links:
+       1. https://www.sciencedirect.com/science/article/abs/pii/S0307904X18302890
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.human_based.QSA import OriginalQSA
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> model = OriginalQSA(problem_dict1, epoch, pop_size)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+
+    References
+    ~~~~~~~~~~
+    [1] Zhang, J., Xiao, M., Gao, L. and Pan, Q., 2018. Queuing search algorithm: A novel metaheuristic algorithm
+    for solving engineering optimization problems. Applied Mathematical Modelling, 63, pp.464-490.
     """
 
     def __init__(self, problem, epoch=10000, pop_size=100, **kwargs):
         """
-
         Args:
-            problem ():
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
-            **kwargs ():
         """
         super().__init__(problem, epoch, pop_size, **kwargs)
         self.nfe_per_epoch = 3 * pop_size
@@ -307,13 +442,15 @@ class OriginalQSA(BaseQSA):
                     X1 = pop[i1][self.ID_POS]
                     X2 = pop[i2][self.ID_POS]
                     pos_new[j] = X1[j] + e * (X2[j] - pop[i][self.ID_POS][j])
-            pos_new = self.amend_position_faster(pos_new)
+            pos_new = self.amend_position(pos_new)
             pop_new.append([pos_new, None])
         pop_new = self.update_fitness_population(pop_new)
         return self.greedy_selection_population(pop, pop_new)
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """

@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-# ------------------------------------------------------------------------------------------------------%
-# Created by "Thieu" at 13:47, 23/11/2021                                                               %
-#                                                                                                       %
-#       Email:      nguyenthieu2102@gmail.com                                                           %
-#       Homepage:   https://www.researchgate.net/profile/Nguyen_Thieu2                                  %
-#       Github:     https://github.com/thieu1995                                                        %
-# ------------------------------------------------------------------------------------------------------%
+# !/usr/bin/env python
+# Created by "Thieu" at 13:47, 23/11/2021 ----------%
+#       Email: nguyenthieu2102@gmail.com            %
+#       Github: https://github.com/thieu1995        %
+# --------------------------------------------------%
 
 # https://www.deeplearningwizard.com/deep_learning/practical_pytorch/pytorch_linear_regression/
 
@@ -34,7 +31,7 @@ class LinearRegressionModel(torch.nn.Module):
         return self.linear(x)
 
 
-def objective_function(solution):
+def fitness_function(solution):
     def training(epoch):
         for iter in range(epoch):
             # Forward pass: Compute predicted y by passing x to the model
@@ -76,7 +73,7 @@ MAX_GEN = 50
 POP_SIZE = 20
 
 problem = {
-    "obj_func": objective_function,
+    "fit_func": fitness_function,
     "lb": LB,
     "ub": UB,
     "minmax": "min",

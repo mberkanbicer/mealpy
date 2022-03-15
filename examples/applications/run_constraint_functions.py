@@ -1,16 +1,15 @@
-#!/usr/bin/env python
-# ------------------------------------------------------------------------------------------------------%
-# Created by "Thieu" at 17:33, 06/11/2021                                                               %
-#                                                                                                       %
-#       Email:      nguyenthieu2102@gmail.com                                                           %
-#       Homepage:   https://www.researchgate.net/profile/Nguyen_Thieu2                                  %
-#       Github:     https://github.com/thieu1995                                                        %
-# ------------------------------------------------------------------------------------------------------%
+# !/usr/bin/env python
+# Created by "Thieu" at 17:33, 06/11/2021 ----------%
+#       Email: nguyenthieu2102@gmail.com            %
+#       Github: https://github.com/thieu1995        %
+# --------------------------------------------------%
 
 from mealpy.bio_based import SMA
 import numpy as np
 
-def obj_function(solution):
+
+## Link: https://onlinelibrary.wiley.com/doi/pdf/10.1002/9781119136507.app2
+def fitness_function(solution):
     def g1(x):
         return 2*x[0] + 2*x[1] + x[9] + x[10] - 10
     def g2(x):
@@ -41,8 +40,9 @@ def obj_function(solution):
             violate(g7(solution)) + violate(g8(solution)) + violate(g9(solution))
     return fx
 
+
 problem_dict1 = {
-    "obj_func": obj_function,
+    "fit_func": fitness_function,
     "lb": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     "ub": [1, 1, 1, 1, 1, 1, 1, 1, 1, 100, 100, 100, 1],
     "minmax": "min",
@@ -51,4 +51,5 @@ problem_dict1 = {
 
 ## Run the algorithm
 model1 = SMA.BaseSMA(problem_dict1, epoch=100, pop_size=50, pr=0.03)
-model1.solve()
+best_position, best_fitness = model1.solve()
+print(f"Best solution: {best_position}, Best fitness: {best_fitness}")

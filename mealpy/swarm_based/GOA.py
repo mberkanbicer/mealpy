@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-# ------------------------------------------------------------------------------------------------------%
-# Created by "Thieu Nguyen" at 14:53, 17/03/2020                                                        %
-#                                                                                                       %
-#       Email:      nguyenthieu2102@gmail.com                                                           %
-#       Homepage:   https://www.researchgate.net/profile/Thieu_Nguyen6                                  %
-#       Github:     https://github.com/thieu1995                                                        %
-#-------------------------------------------------------------------------------------------------------%
+# !/usr/bin/env python
+# Created by "Thieu" at 14:53, 17/03/2020 ----------%
+#       Email: nguyenthieu2102@gmail.com            %
+#       Github: https://github.com/thieu1995        %
+# --------------------------------------------------%
 
 import numpy as np
 from mealpy.optimizer import Optimizer
@@ -14,22 +11,55 @@ from mealpy.optimizer import Optimizer
 class BaseGOA(Optimizer):
     """
     The original version of: Grasshopper Optimization Algorithm (GOA)
-        (Grasshopper Optimisation Algorithm: Theory and Application Advances in Engineering Software)
-    Link:
-        http://dx.doi.org/10.1016/j.advengsoft.2017.01.004
-        https://www.mathworks.com/matlabcentral/fileexchange/61421-grasshopper-optimisation-algorithm-goa
+
+    Links:
+        1. http://dx.doi.org/10.1016/j.advengsoft.2017.01.004
+        2. https://www.mathworks.com/matlabcentral/fileexchange/61421-grasshopper-optimisation-algorithm-goa
+
     Notes:
+        + The matlab version above is not good, therefore
         + I added np.random.normal() component to Eq, 2.7
-        + Changed the way to calculate distance between two location
+        + I changed the way to calculate distance between two location
+
+    Hyper-parameters should fine tuned in approximate range to get faster convergen toward the global optimum:
+        + c_minmax (list): (c_min, c_max) -> ([0.00001, 0.01], [0.5, 2.0]), coefficient c, default = (0.00004, 1)
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.swarm_based.GOA import BaseGOA
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> c_minmax = [0.00004, 1]
+    >>> model = BaseGOA(problem_dict1, epoch, pop_size, c_minmax)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+
+    References
+    ~~~~~~~~~~
+    [1] Saremi, S., Mirjalili, S. and Lewis, A., 2017. Grasshopper optimisation algorithm:
+    theory and application. Advances in Engineering Software, 105, pp.30-47.
     """
+
     def __init__(self, problem, epoch=10000, pop_size=100, c_minmax=(0.00004, 1), **kwargs):
         """
         Args:
-            problem ():
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
-            c_minmax (list): coefficient c
-            **kwargs ():
+            c_minmax (list): coefficient c, default = (0.00004, 1)
         """
         super().__init__(problem, kwargs)
         self.nfe_per_epoch = pop_size
@@ -47,6 +77,8 @@ class BaseGOA(Optimizer):
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
@@ -65,8 +97,7 @@ class BaseGOA(Optimizer):
                 s_ij = ran * self._s_function__(xj_xi) * r_ij_vector
                 S_i_total += s_ij
             x_new = c * np.random.normal() * S_i_total + self.g_best[self.ID_POS]  # Eq. (2.7) in the paper
-            pos_new = self.amend_position_faster(x_new)
+            pos_new = self.amend_position(x_new)
             pop_new.append([pos_new, None])
         pop_new = self.update_fitness_population(pop_new)
         self.pop = self.greedy_selection_population(self.pop, pop_new)
-

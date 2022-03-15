@@ -1,11 +1,8 @@
 #!/usr/bin/env python
-# ------------------------------------------------------------------------------------------------------%
-# Created by "Thieu" at 14:07, 02/03/2021                                                               %
-#                                                                                                       %
-#       Email:      nguyenthieu2102@gmail.com                                                           %
-#       Homepage:   https://www.researchgate.net/profile/Nguyen_Thieu2                                  %
-#       Github:     https://github.com/thieu1995                                                        %
-# ------------------------------------------------------------------------------------------------------%
+# Created by "Thieu" at 14:07, 02/03/2021 ----------%
+#       Email: nguyenthieu2102@gmail.com            %
+#       Github: https://github.com/thieu1995        %
+# --------------------------------------------------%
 
 import numpy as np
 from copy import deepcopy
@@ -14,27 +11,66 @@ from mealpy.optimizer import Optimizer
 
 class BaseICA(Optimizer):
     """
-        The original version of: Imperialist Competitive Algorithm (ICA)
-        Link:
-            https://ieeexplore.ieee.org/document/4425083
+    The original version of: Imperialist Competitive Algorithm (ICA)
+
+    Links:
+        1. https://ieeexplore.ieee.org/document/4425083
+
+    Hyper-parameters should fine tuned in approximate range to get faster convergen toward the global optimum:
+        + empire_count (int): [3, 10], Number of Empires (also Imperialists)
+        + assimilation_coeff (float): [1.0, 3.0], Assimilation Coefficient (beta in the paper)
+        + revolution_prob (float): [0.01, 0.1], Revolution Probability
+        + revolution_rate (float): [0.05, 0.2], Revolution Rate       (mu)
+        + revolution_step_size (float): [0.05, 0.2], Revolution Step Size  (sigma)
+        + zeta (float): [0.05, 0.2], Colonies Coefficient in Total Objective Value of Empires
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.human_based.ICA import BaseICA
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> empire_count = 5
+    >>> assimilation_coeff = 1.5
+    >>> revolution_prob = 0.05
+    >>> revolution_rate = 0.1
+    >>> revolution_step_size = 0.1
+    >>> zeta = 0.1
+    >>> model = BaseICA(problem_dict1, epoch, pop_size, empire_count, assimilation_coeff, revolution_prob, revolution_rate, revolution_step_size, zeta)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+
+    References
+    ~~~~~~~~~~
+    [1] Atashpaz-Gargari, E. and Lucas, C., 2007, September. Imperialist competitive algorithm: an algorithm for
+    optimization inspired by imperialistic competition. In 2007 IEEE congress on evolutionary computation (pp. 4661-4667). Ieee.
     """
 
-    def __init__(self, problem, epoch=10000, pop_size=100, empire_count=5, selection_pressure=1, assimilation_coeff=1.5,
-                 revolution_prob=0.05, revolution_rate=0.1, revolution_step_size=0.1, revolution_step_size_damp=0.99, zeta=0.1, **kwargs):
+    def __init__(self, problem, epoch=10000, pop_size=100, empire_count=5, assimilation_coeff=1.5,
+                 revolution_prob=0.05, revolution_rate=0.1, revolution_step_size=0.1, zeta=0.1, **kwargs):
         """
         Args:
-            problem ():
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size (n: pop_size, m: clusters), default = 100
-            empire_count (): Number of Empires (also Imperialists)
-            selection_pressure (): Selection Pressure
-            assimilation_coeff (): Assimilation Coefficient (beta in the paper)
-            revolution_prob (): Revolution Probability
-            revolution_rate (): Revolution Rate       (mu)
-            revolution_step_size (): Revolution Step Size  (sigma)
-            revolution_step_size_damp (): Revolution Step Size Damp Rate
-            zeta (): Colonies Coefficient in Total Objective Value of Empires
-            **kwargs ():
+            empire_count (int): Number of Empires (also Imperialists)
+            assimilation_coeff (float): Assimilation Coefficient (beta in the paper)
+            revolution_prob (float): Revolution Probability
+            revolution_rate (float): Revolution Rate       (mu)
+            revolution_step_size (float): Revolution Step Size  (sigma)
+            zeta (float): Colonies Coefficient in Total Objective Value of Empires
         """
         super().__init__(problem, kwargs)
         self.nfe_per_epoch = pop_size
@@ -43,12 +79,10 @@ class BaseICA(Optimizer):
         self.epoch = epoch
         self.pop_size = pop_size
         self.empire_count = empire_count
-        self.selection_pressure = selection_pressure
         self.assimilation_coeff = assimilation_coeff
         self.revolution_prob = revolution_prob
         self.revolution_rate = revolution_rate
         self.revolution_step_size = revolution_step_size
-        self.revolution_step_size_damp = revolution_step_size_damp
         self.zeta = zeta
 
         self.pop_empires, self.pop_colonies, self.empires = None, None, None
@@ -57,7 +91,7 @@ class BaseICA(Optimizer):
     def revolution_country(self, position, idx_list_variables, n_revoluted):
         pos_new = position + self.revolution_step_size * np.random.normal(0, 1, self.problem.n_dims)
         idx_list = np.random.choice(idx_list_variables, n_revoluted, replace=False)
-        position[idx_list] = pos_new[idx_list]      # Change only those selected index
+        position[idx_list] = pos_new[idx_list]  # Change only those selected index
         return position
 
     def initialization(self):
@@ -73,7 +107,7 @@ class BaseICA(Optimizer):
         self.pop_empires = deepcopy(self.pop[:self.empire_count])
         self.pop_colonies = deepcopy(self.pop[self.empire_count:])
 
-        cost_empires_list = np.array([solution[self.ID_FIT][self.ID_TAR] for solution in self.pop_empires])
+        cost_empires_list = np.array([solution[self.ID_TAR][self.ID_FIT] for solution in self.pop_empires])
         cost_empires_list_normalized = cost_empires_list - (np.max(cost_empires_list) + np.min(cost_empires_list))
         prob_empires_list = np.abs(cost_empires_list_normalized / np.sum(cost_empires_list_normalized))
         # Randomly choose colonies to empires
@@ -93,6 +127,8 @@ class BaseICA(Optimizer):
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
@@ -101,7 +137,7 @@ class BaseICA(Optimizer):
             for idx_colony, colony in enumerate(colonies):
                 pos_new = colony[self.ID_POS] + self.assimilation_coeff * \
                           np.random.uniform(0, 1, self.problem.n_dims) * (self.pop_empires[idx][self.ID_POS] - colony[self.ID_POS])
-                pos_new = self.amend_position_faster(pos_new)
+                pos_new = self.amend_position(pos_new)
                 self.empires[idx][idx_colony][self.ID_POS] = pos_new
             self.empires[idx] = self.update_fitness_population(self.empires[idx])
             # empires[idx], g_best = self.update_global_best_solution(empires[idx], self.ID_MIN_PROB, g_best)
@@ -110,13 +146,13 @@ class BaseICA(Optimizer):
         for idx, colonies in self.empires.items():
             # Apply revolution to Imperialist
             pos_new = self.revolution_country(self.pop_empires[idx][self.ID_POS], self.idx_list_variables, self.n_revoluted_variables)
-            self.pop_empires[idx][self.ID_POS] = self.amend_position_faster(pos_new)
+            self.pop_empires[idx][self.ID_POS] = self.amend_position(pos_new)
 
             # Apply revolution to Colonies
             for idx_colony, colony in enumerate(colonies):
                 if np.random.rand() < self.revolution_prob:
                     pos_new = self.revolution_country(colony[self.ID_POS], self.idx_list_variables, self.n_revoluted_variables)
-                    self.empires[idx][idx_colony][self.ID_POS] = self.amend_position_faster(pos_new)
+                    self.empires[idx][idx_colony][self.ID_POS] = self.amend_position(pos_new)
             self.empires[idx] = self.update_fitness_population(self.empires[idx])
         self.pop_empires = self.update_fitness_population(self.pop_empires)
         _, g_best = self.update_global_best_solution(self.pop_empires)
@@ -130,8 +166,8 @@ class BaseICA(Optimizer):
         # Update Total Objective Values of Empires
         cost_empires_list = []
         for idx, colonies in self.empires.items():
-            fit_list = np.array([solution[self.ID_FIT][self.ID_TAR] for solution in colonies])
-            fit_empire = self.pop_empires[idx][self.ID_FIT][self.ID_TAR] + self.zeta * np.mean(fit_list)
+            fit_list = np.array([solution[self.ID_TAR][self.ID_FIT] for solution in colonies])
+            fit_empire = self.pop_empires[idx][self.ID_TAR][self.ID_FIT] + self.zeta * np.mean(fit_list)
             cost_empires_list.append(fit_empire)
         cost_empires_list = np.array(cost_empires_list)
 

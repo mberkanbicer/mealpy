@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-# ------------------------------------------------------------------------------------------------------%
-# Created by "Thieu Nguyen" at 10:14, 18/03/2020                                                        %
-#                                                                                                       %
-#       Email:      nguyenthieu2102@gmail.com                                                           %
-#       Homepage:   https://www.researchgate.net/profile/Thieu_Nguyen6                                  %
-#       Github:     https://github.com/thieu1995                                                        %
-#-------------------------------------------------------------------------------------------------------%
+# !/usr/bin/env python
+# Created by "Thieu" at 10:14, 18/03/2020 ----------%
+#       Email: nguyenthieu2102@gmail.com            %
+#       Github: https://github.com/thieu1995        %
+# --------------------------------------------------%
 
 import numpy as np
 from functools import reduce
@@ -15,22 +12,51 @@ from mealpy.optimizer import Optimizer
 
 class BaseTLO(Optimizer):
     """
-        Teaching-Learning-based Optimization (TLO)
-    An elitist teaching-learning-based optimization algorithm for solving complex constrained optimization problems(TLO)
-        This is my version taken the advantages of numpy np.array to faster handler operations.
-    Notes:
-        + Remove all third loop
-        + Using global best solution
+    The original version of: Teaching Learning-based Optimization (TLO)
+
+    Links:
+       1. https://doi.org/10.5267/j.ijiec.2012.03.007
+
+    Notes
+    ~~~~~
+    + Removed the third loop to make it faster
+    + This version taken the advantages of numpy np.array to faster handler operations
+    + The global best solution is used
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.human_based.TLO import BaseTLO
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> model = BaseTLO(problem_dict1, epoch, pop_size)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+
+    References
+    ~~~~~~~~~~
+    [1] Rao, R. and Patel, V., 2012. An elitist teaching-learning-based optimization algorithm for solving
+    complex constrained optimization problems. international journal of industrial engineering computations, 3(4), pp.535-560.
     """
 
     def __init__(self, problem, epoch=10000, pop_size=100, **kwargs):
         """
-
         Args:
-            problem ():
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
-            **kwargs ():
         """
         super().__init__(problem, kwargs)
         self.nfe_per_epoch = 2 * pop_size
@@ -41,6 +67,8 @@ class BaseTLO(Optimizer):
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
@@ -51,7 +79,7 @@ class BaseTLO(Optimizer):
             list_pos = np.array([item[self.ID_POS] for item in self.pop])
             DIFF_MEAN = np.random.rand(self.problem.n_dims) * (self.g_best[self.ID_POS] - TF * np.mean(list_pos, axis=0))
             temp = self.pop[idx][self.ID_POS] + DIFF_MEAN
-            pos_new = self.amend_position_faster(temp)
+            pos_new = self.amend_position(temp)
             pop_new.append([pos_new, None])
         pop_new = self.update_fitness_population(pop_new)
         pop_new = self.greedy_selection_population(self.pop, pop_new)
@@ -59,14 +87,13 @@ class BaseTLO(Optimizer):
         pop_child = []
         for idx in range(0, self.pop_size):
             ## Learning Phrase
-            temp = deepcopy(pop_new[idx][self.ID_POS])
+            temp = deepcopy(pop_new[idx][self.ID_POS]).astype(float)
             id_partner = np.random.choice(np.setxor1d(np.array(range(self.pop_size)), np.array([idx])))
-            # arr_random = np.random.rand(self.problem.n_dims)
             if self.compare_agent(pop_new[idx], pop_new[id_partner]):
                 temp += np.random.rand(self.problem.n_dims) * (pop_new[idx][self.ID_POS] - pop_new[id_partner][self.ID_POS])
             else:
                 temp += np.random.rand(self.problem.n_dims) * (pop_new[id_partner][self.ID_POS] - pop_new[idx][self.ID_POS])
-            pos_new = self.amend_position_faster(temp)
+            pos_new = self.amend_position(temp)
             pop_child.append([pos_new, None])
         pop_child = self.update_fitness_population(pop_child)
         self.pop = self.greedy_selection_population(pop_new, pop_child)
@@ -75,20 +102,49 @@ class BaseTLO(Optimizer):
 class OriginalTLO(BaseTLO):
     """
     The original version of: Teaching Learning-based Optimization (TLO)
-        Teaching-learning-based optimization: A novel method for constrained mechanical design optimization problems
-    This is slower version which inspired from this version:
-        https://github.com/andaviaco/tblo
-    Notes:
-        + Removed the third loop to make it faster
+
+    Links:
+       1. https://github.com/andaviaco/tblo
+
+    Notes
+    ~~~~~
+    + Removed the third loop to make it faster
+    + This is slower version which inspired from link below
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.human_based.TLO import OriginalTLO
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> model = OriginalTLO(problem_dict1, epoch, pop_size)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+
+    References
+    ~~~~~~~~~~
+    [1] Rao, R.V., Savsani, V.J. and Vakharia, D.P., 2011. Teaching–learning-based optimization: a novel method
+    for constrained mechanical design optimization problems. Computer-aided design, 43(3), pp.303-315.
     """
 
     def __init__(self, problem, epoch=10000, pop_size=100, **kwargs):
         """
         Args:
-            problem ():
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
-            **kwargs ():
         """
         super().__init__(problem, epoch, pop_size, **kwargs)
         self.nfe_per_epoch = 2 * pop_size
@@ -96,6 +152,8 @@ class OriginalTLO(BaseTLO):
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
@@ -106,7 +164,7 @@ class OriginalTLO(BaseTLO):
             list_pos = np.array([item[self.ID_POS] for item in self.pop])
             pos_new = self.pop[idx][self.ID_POS] + np.random.uniform(0, 1, self.problem.n_dims) * \
                       (self.g_best[self.ID_POS] - TF * np.mean(list_pos, axis=0))
-            pos_new = self.amend_position_faster(pos_new)
+            pos_new = self.amend_position(pos_new)
             fit_new = self.get_fitness_position(pos_new)
             if self.compare_agent([pos_new, fit_new], self.pop[idx]):
                 self.pop[idx] = [pos_new, fit_new]
@@ -120,7 +178,7 @@ class OriginalTLO(BaseTLO):
             else:
                 diff = self.pop[id_partner][self.ID_POS] - self.pop[idx][self.ID_POS]
             pos_new = self.pop[idx][self.ID_POS] + np.random.uniform(0, 1, self.problem.n_dims) * diff
-            pos_new = self.amend_position_faster(pos_new)
+            pos_new = self.amend_position(pos_new)
             fit_new = self.get_fitness_position(pos_new)
             if self.compare_agent([pos_new, fit_new], self.pop[idx]):
                 self.pop[idx] = [pos_new, fit_new]
@@ -128,21 +186,54 @@ class OriginalTLO(BaseTLO):
 
 class ITLO(BaseTLO):
     """
-    My version of: Improved Teaching-Learning-based Optimization (ITLO)
-    Link:
-        An improved teaching-learning-based optimization algorithm for solving unconstrained optimization problems
-    Notes:
-        + Kinda similar to the paper, but the pseudo-code in the paper is not clear.
+    The original version of: Improved Teaching-Learning-based Optimization (ITLO)
+
+    Links:
+       1. https://doi.org/10.1016/j.scient.2012.12.005
+
+    Notes
+    ~~~~~
+    + Removed the third loop to make it faster
+    + Kinda similar to the paper, but the pseudo-code in the paper is not clear.
+
+    Hyper-parameters should fine tuned in approximate range to get faster convergen toward the global optimum:
+        + n_teachers (int): [3, 10], number of teachers in class, default=5
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.human_based.TLO import ITLO
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> model = ITLO(problem_dict1, epoch, pop_size)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+
+    References
+    ~~~~~~~~~~
+    [1] Rao, R.V. and Patel, V., 2013. An improved teaching-learning-based optimization algorithm
+    for solving unconstrained optimization problems. Scientia Iranica, 20(3), pp.710-720.
     """
 
     def __init__(self, problem, epoch=10000, pop_size=100, n_teachers=5, **kwargs):
         """
         Args:
-            problem ():
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
             n_teachers (int): number of teachers in class
-            **kwargs ():
         """
         super().__init__(problem, epoch, pop_size, **kwargs)
         self.nfe_per_epoch = 2 * pop_size
@@ -171,6 +262,8 @@ class ITLO(BaseTLO):
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
@@ -180,10 +273,10 @@ class ITLO(BaseTLO):
             mean_team = np.mean(list_pos, axis=0)
             pop_new = []
             for id_stud, student in enumerate(team):
-                if teacher[self.ID_FIT][self.ID_TAR] == 0:
+                if teacher[self.ID_TAR][self.ID_FIT] == 0:
                     TF = 1
                 else:
-                    TF = student[self.ID_FIT][self.ID_TAR] / teacher[self.ID_FIT][self.ID_TAR]
+                    TF = student[self.ID_TAR][self.ID_FIT] / teacher[self.ID_TAR][self.ID_FIT]
                 diff_mean = np.random.rand() * (teacher[self.ID_POS] - TF * mean_team)  # Step 8
 
                 id2 = np.random.choice(list(set(range(0, self.n_teachers)) - {id_teach}))
@@ -191,7 +284,7 @@ class ITLO(BaseTLO):
                     pos_new = (student[self.ID_POS] + diff_mean) + np.random.rand() * (team[id2][self.ID_POS] - student[self.ID_POS])
                 else:
                     pos_new = (student[self.ID_POS] + diff_mean) + np.random.rand() * (student[self.ID_POS] - team[id2][self.ID_POS])
-                pos_new = self.amend_position_faster(pos_new)
+                pos_new = self.amend_position(pos_new)
                 pop_new.append([pos_new, None])
             pop_new = self.update_fitness_population(pop_new)
             self.teams[id_teach] = self.greedy_selection_population(team, pop_new)
@@ -208,7 +301,7 @@ class ITLO(BaseTLO):
                 else:
                     pos_new = student[self.ID_POS] + np.random.rand() * (team[id2][self.ID_POS] - student[self.ID_POS]) + \
                               np.random.rand() * (teacher[self.ID_POS] - ef * student[self.ID_POS])
-                pos_new = self.amend_position_faster(pos_new)
+                pos_new = self.amend_position(pos_new)
                 pop_new.append([pos_new, None])
             pop_new = self.update_fitness_population(pop_new)
             self.teams[id_teach] = self.greedy_selection_population(team, pop_new)

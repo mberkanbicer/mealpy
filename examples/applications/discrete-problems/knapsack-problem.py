@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-# ------------------------------------------------------------------------------------------------------%
-# Created by "Thieu" at 11:03, 29/11/2021                                                               %
-#                                                                                                       %
-#       Email:      nguyenthieu2102@gmail.com                                                           %
-#       Homepage:   https://www.researchgate.net/profile/Nguyen_Thieu2                                  %
-#       Github:     https://github.com/thieu1995                                                        %
-# ------------------------------------------------------------------------------------------------------%
+# !/usr/bin/env python
+# Created by "Thieu" at 11:03, 29/11/2021 ----------%
+#       Email: nguyenthieu2102@gmail.com            %
+#       Github: https://github.com/thieu1995        %
+# --------------------------------------------------%
 
 # https://developers.google.com/optimization/bin/knapsack
 
@@ -20,7 +17,7 @@ from mealpy.math_based import AOA, HC, SCA
 from mealpy.human_based import BRO, CA, FBIO, SARO, SSDO, TLO, GSKA, LCO, ICA, BSO, QSA, CHIO
 from mealpy.physics_based import ArchOA, ASO, EFO, HGSO, MVO, WDO, SA, TWO, NRO
 from mealpy.swarm_based import ABC, ACOR, AO, BA, WOA, SSA, SLO, SHO, SSO, NMRA, MSA, MRFO, MFO, JA
-from mealpy.swarm_based import GOA, CSA, BSA, ALO, BeesA, BES, FireflyA, FOA, PFA, COA, FA, SFO, SSpiderA, SSpiderO
+from mealpy.swarm_based import GOA, CSA, BSA, ALO, BeesA, BES, FFA, FOA, PFA, COA, FA, SFO, SSpiderA, SSpiderO
 from mealpy.swarm_based import HHO, GWO, EHO, CSO, DO, SRSR, PSO, BFO, HGS
 
 VALUES = np.array([
@@ -46,8 +43,8 @@ CAPACITY = 850
 LB = [0] * 50
 UB = [1.99] * 50
 
-def objective_function(solution):
-    def punish(value):
+def fitness_function(solution):
+    def punish_function(value):
         """
         Using this function to handling constraint optimization problem
         """
@@ -55,12 +52,12 @@ def objective_function(solution):
 
     solution_int = solution.astype(int)                 # Convert float to integer here
     current_capacity = np.sum(solution_int * WEIGHTS)
-    temp = np.sum(solution_int * VALUES) - punish(current_capacity)
+    temp = np.sum(solution_int * VALUES) - punish_function(current_capacity)
     return temp
 
 
 problem_dict1 = {
-    "obj_func": objective_function,
+    "fit_func": fitness_function,
     "lb": LB,
     "ub": UB,
     "minmax": "max",
@@ -69,8 +66,8 @@ problem_dict1 = {
 
 ## Run the algorithm
 model1 = MVO.OriginalMVO(problem_dict1, epoch=100, pop_size=50)
-model1.solve()
-
+best_position, best_fitness = model1.solve()
+print(f"Best solution: {best_position}, Best fitness: {best_fitness}")
 print(model1.solution[0].astype(int))
 
 

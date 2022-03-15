@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-# ------------------------------------------------------------------------------------------------------%
-# Created by "Thieu" at 17:00, 27/11/2021                                                               %
-#                                                                                                       %
-#       Email:      nguyenthieu2102@gmail.com                                                           %
-#       Homepage:   https://www.researchgate.net/profile/Nguyen_Thieu2                                  %
-#       Github:     https://github.com/thieu1995                                                        %
-# ------------------------------------------------------------------------------------------------------%
+# !/usr/bin/env python
+# Created by "Thieu" at 17:00, 27/11/2021 ----------%
+#       Email: nguyenthieu2102@gmail.com            %
+#       Github: https://github.com/thieu1995        %
+# --------------------------------------------------%
 
 ## Link: https://vitalflux.com/classification-model-svm-classifier-python-example/
 
@@ -35,7 +32,7 @@ KERNEL_ENCODER.fit(['linear', 'poly', 'rbf', 'sigmoid'])
 # print(KERNEL_ENCODER.inverse_transform( [1, 3]))
 
 
-def objective_function(solution):
+def fitness_function(solution):
     # if kernel belongs to 0 - 0.99 ==> 0       ==> linear
     #                       2 - 2.99 ==> 2
     #                       3 - 3.99 ==> 3      ==> sigmoid
@@ -53,7 +50,7 @@ def objective_function(solution):
     return metrics.accuracy_score(y_test, y_predict)
 
 problem = {
-    "obj_func": objective_function,
+    "fit_func": fitness_function,
     "lb": [0, 0.1],
     "ub": [3.99, 1000],
     "minmax": "max",

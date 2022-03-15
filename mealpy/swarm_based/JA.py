@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-# ------------------------------------------------------------------------------------------------------%
-# Created by "Thieu" at 16:30, 16/11/2020                                                               %
-#                                                                                                       %
-#       Email:      nguyenthieu2102@gmail.com                                                           %
-#       Homepage:   https://www.researchgate.net/profile/Nguyen_Thieu2                                  %
-#       Github:     https://github.com/thieu1995                                                        %
-# ------------------------------------------------------------------------------------------------------%
+# !/usr/bin/env python
+# Created by "Thieu" at 16:30, 16/11/2020 ----------%
+#       Email: nguyenthieu2102@gmail.com            %
+#       Github: https://github.com/thieu1995        %
+# --------------------------------------------------%
 
 import numpy as np
 from mealpy.optimizer import Optimizer
@@ -13,23 +10,47 @@ from mealpy.optimizer import Optimizer
 
 class BaseJA(Optimizer):
     """
-        My original version of: Jaya Algorithm (JA)
-            (A simple and new optimization algorithm for solving constrained and unconstrained optimization problems)
-        Link:
-            https://www.researchgate.net/publication/282532308_Jaya_A_simple_and_new_optimization_algorithm_for_solving_constrained_and_unconstrained_optimization_problems
-        Notes:
-            + Remove all third loop in algorithm
-            + Change the second random variable r2 to Gaussian instead of np.random.uniform
+    My changed version of: Jaya Algorithm (JA)
+
+    Notes
+    ~~~~~
+    + All third loops are removed
+    + Change the second random variable r2 to Gaussian instead of Uniform
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.swarm_based.JA import BaseJA
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> model = BaseJA(problem_dict1, epoch, pop_size)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+
+    References
+    ~~~~~~~~~~
+    [1] Rao, R., 2016. Jaya: A simple and new optimization algorithm for solving constrained and
+    unconstrained optimization problems. International Journal of Industrial Engineering Computations, 7(1), pp.19-34.
     """
 
     def __init__(self, problem, epoch=10000, pop_size=100, **kwargs):
         """
-
         Args:
-            problem ():
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
-            **kwargs ():
         """
         super().__init__(problem, kwargs)
         self.nfe_per_epoch = pop_size
@@ -40,6 +61,8 @@ class BaseJA(Optimizer):
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
@@ -49,32 +72,59 @@ class BaseJA(Optimizer):
         for idx in range(0, self.pop_size):
             pos_new = self.pop[idx][self.ID_POS] + np.random.uniform() * (g_best[self.ID_POS] - np.abs(self.pop[idx][self.ID_POS])) + \
                       np.random.normal() * (g_worst[self.ID_POS] - np.abs(self.pop[idx][self.ID_POS]))
-            pos_new = self.amend_position_faster(pos_new)
+            pos_new = self.amend_position(pos_new)
             pop_new.append([pos_new, None])
         self.pop = self.update_fitness_population(pop_new)
 
 
 class OriginalJA(BaseJA):
     """
-        The original version of: Jaya Algorithm (JA)
-            (A simple and new optimization algorithm for solving constrained and unconstrained optimization problems)
-        Link:
-            http://www.growingscience.com/ijiec/Vol7/IJIEC_2015_32.pdf
+    The original version of: Jaya Algorithm (JA)
+
+    Links:
+        1. https://www.growingscience.com/ijiec/Vol7/IJIEC_2015_32.pdf
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.swarm_based.JA import OriginalJA
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> model = OriginalJA(problem_dict1, epoch, pop_size)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+
+    References
+    ~~~~~~~~~~
+    [1] Rao, R., 2016. Jaya: A simple and new optimization algorithm for solving constrained and
+    unconstrained optimization problems. International Journal of Industrial Engineering Computations, 7(1), pp.19-34.
     """
 
     def __init__(self, problem, epoch=10000, pop_size=100, **kwargs):
         """
-
         Args:
-            problem ():
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
-            **kwargs ():
         """
         super().__init__(problem, epoch, pop_size, **kwargs)
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
@@ -85,29 +135,57 @@ class OriginalJA(BaseJA):
             pos_new = self.pop[idx][self.ID_POS] + np.random.uniform(0, 1, self.problem.n_dims) * \
                       (g_best[self.ID_POS] - np.abs(self.pop[idx][self.ID_POS])) - \
                       np.random.uniform(0, 1, self.problem.n_dims) * (g_worst[self.ID_POS] - np.abs(self.pop[idx][self.ID_POS]))
-            pos_new = self.amend_position_faster(pos_new)
+            pos_new = self.amend_position(pos_new)
             pop_new.append([pos_new, None])
         self.pop = self.update_fitness_population(pop_new)
 
 
 class LevyJA(BaseJA):
     """
-        The original version of: Levy-flight Jaya Algorithm (LJA)
-            (An improved Jaya optimization algorithm with Levy flight)
-        Link:
-            + https://doi.org/10.1016/j.eswa.2020.113902
-        Note:
-            + This version I still remove all third loop in algorithm
-            + The beta value of Levy-flight equal to 1.8 as the best value in the paper.
+    The original version of: Levy-flight Jaya Algorithm (LJA)
+
+    Links:
+        1. https://doi.org/10.1016/j.eswa.2020.113902
+
+    Notes
+    ~~~~~
+    + All third loops in this version also are removed
+    + The beta value of Levy-flight equal to 1.8 as the best value in the paper.
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.swarm_based.JA import LevyJA
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> model = LevyJA(problem_dict1, epoch, pop_size)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+
+    References
+    ~~~~~~~~~~
+    [1] Iacca, G., dos Santos Junior, V.C. and de Melo, V.V., 2021. An improved Jaya optimization
+    algorithm with Lévy flight. Expert Systems with Applications, 165, p.113902.
     """
+
     def __init__(self, problem, epoch=10000, pop_size=100, **kwargs):
         """
-
         Args:
-            problem ():
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
-            **kwargs ():
         """
         super().__init__(problem, epoch, pop_size, **kwargs)
         self.nfe_per_epoch = pop_size
@@ -115,6 +193,8 @@ class LevyJA(BaseJA):
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
@@ -126,6 +206,6 @@ class LevyJA(BaseJA):
             L2 = self.get_levy_flight_step(multiplier=1.0, beta=1.0, case=-1)
             pos_new = self.pop[idx][self.ID_POS] + np.abs(L1) * (g_best[self.ID_POS] - np.abs(self.pop[idx][self.ID_POS])) - \
                       np.abs(L2) * (g_worst[self.ID_POS] - np.abs(self.pop[idx][self.ID_POS]))
-            pos_new = self.amend_position_faster(pos_new)
+            pos_new = self.amend_position(pos_new)
             pop_new.append([pos_new, None])
         self.pop = self.update_fitness_population(pop_new)

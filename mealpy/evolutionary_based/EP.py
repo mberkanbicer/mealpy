@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-# ------------------------------------------------------------------------------------------------------%
-# Created by "Thieu Nguyen" at 19:27, 10/04/2020                                                        %
-#                                                                                                       %
-#       Email:      nguyenthieu2102@gmail.com                                                           %
-#       Homepage:   https://www.researchgate.net/profile/Thieu_Nguyen6                                  %
-#       Github:     https://github.com/thieu1995                                                        %
-#-------------------------------------------------------------------------------------------------------%
+# !/usr/bin/env python
+# Created by "Thieu" at 19:27, 10/04/2020 ----------%
+#       Email: nguyenthieu2102@gmail.com            %
+#       Github: https://github.com/thieu1995        %
+# --------------------------------------------------%
 
 import numpy as np
 from copy import deepcopy
@@ -14,19 +11,55 @@ from mealpy.optimizer import Optimizer
 
 class BaseEP(Optimizer):
     """
-        The original version of: Evolutionary Programming (EP)
-            (Clever Algorithms: Nature-Inspired Programming Recipes - Evolutionary Programming)
-        Link:
-            http://www.cleveralgorithms.com/nature-inspired/evolution/evolutionary_programming.html
+    The original version of: Evolutionary Programming (EP)
+
+    Links:
+        1. http://www.cleveralgorithms.com/nature-inspired/evolution/evolutionary_programming.html
+        2. https://github.com/clever-algorithms/CleverAlgorithms
+
+    Hyper-parameters should fine tuned in approximate range to get faster convergen toward the global optimum:
+        + bout_size (float/int): Number of tried with tournament selection (5% of pop_size)
+            + if float number --> percentage of child agents, [0.05, 0.2]
+            + int --> number of child agents, [3, 20]
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.evolutionary_based.EP import BaseEP
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> bout_size = 0.05
+    >>> model = BaseEP(problem_dict1, epoch, pop_size, bout_size)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+
+    References
+    ~~~~~~~~~~
+    [1] Yao, X., Liu, Y. and Lin, G., 1999. Evolutionary programming made faster.
+    IEEE Transactions on Evolutionary computation, 3(2), pp.82-102.
     """
+
     ID_POS = 0
-    ID_FIT = 1
+    ID_TAR = 1
     ID_STR = 2  # strategy
     ID_WIN = 3
 
     def __init__(self, problem, epoch=10000, pop_size=100, bout_size=0.05, **kwargs):
         """
         Args:
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size (miu in the paper), default = 100
             n_child (float/int): if float number --> percentage of child agents, int --> number of child agents
@@ -37,7 +70,7 @@ class BaseEP(Optimizer):
 
         self.epoch = epoch
         self.pop_size = pop_size
-        if bout_size < 1:                   # Number of tried with tournament selection (5% of pop_size)
+        if bout_size < 1:  # Number of tried with tournament selection (5% of pop_size)
             self.bout_size = int(bout_size * self.pop_size)
         else:
             self.bout_size = int(bout_size)
@@ -45,17 +78,17 @@ class BaseEP(Optimizer):
 
     def create_solution(self):
         """
-        Returns:
-            The position position with 2 element: index of position/location and index of fitness wrapper
-            The general format: [position, [target, [obj1, obj2, ...]], strategy, times_win]
+        To get the position, fitness wrapper, target and obj list
+            + A[self.ID_POS]                  --> Return: position
+            + A[self.ID_TAR]                  --> Return: [target, [obj1, obj2, ...]]
+            + A[self.ID_TAR][self.ID_FIT]     --> Return: target
+            + A[self.ID_TAR][self.ID_OBJ]     --> Return: [obj1, obj2, ...]
 
-        ## To get the position, fitness wrapper, target and obj list
-        ##      A[self.ID_POS]                  --> Return: position
-        ##      A[self.ID_FIT]                  --> Return: [target, [obj1, obj2, ...]]
-        ##      A[self.ID_FIT][self.ID_TAR]     --> Return: target
-        ##      A[self.ID_FIT][self.ID_OBJ]     --> Return: [obj1, obj2, ...]
+        Returns:
+            list: wrapper of solution with format [position, [target, [obj1, obj2, ...]], strategy, times_win]
         """
         position = np.random.uniform(self.problem.lb, self.problem.ub)
+        position = self.amend_position(position)
         fitness = self.get_fitness_position(position=position)
         strategy = np.random.uniform(0, self.distance, self.problem.n_dims)
         times_win = 0
@@ -63,13 +96,15 @@ class BaseEP(Optimizer):
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
         child = []
         for idx in range(0, self.pop_size):
             pos_new = self.pop[idx][self.ID_POS] + self.pop[idx][self.ID_STR] * np.random.normal(0, 1.0, self.problem.n_dims)
-            pos_new = self.amend_position_faster(pos_new)
+            pos_new = self.amend_position(pos_new)
             s_old = self.pop[idx][self.ID_STR] + np.random.normal(0, 1.0, self.problem.n_dims) * np.abs(self.pop[idx][self.ID_STR]) ** 0.5
             child.append([pos_new, None, s_old, 0])
         child = self.update_fitness_population(child)
@@ -91,25 +126,57 @@ class BaseEP(Optimizer):
 
 class LevyEP(BaseEP):
     """
-        The levy version of: Evolutionary Programming (EP)
-        Noted:
-            + Applied levy-flight
-            + Change the flow and add more equations
+    My Levy-flight version of: Evolutionary Programming (LevyEP)
+
+    Notes
+    ~~~~~
+    I try to apply Levy-flight to EP and change flow and add some equations.
+
+    Hyper-parameters should fine tuned in approximate range to get faster convergen toward the global optimum:
+        + bout_size (float/int): Number of tried with tournament selection (5% of pop_size)
+            + if float number --> percentage of child agents, [0.05, 0.2]
+            + int --> number of child agents, [3, 20]
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.evolutionary_based.EP import LevyEP
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> bout_size = 0.05
+    >>> model = LevyEP(problem_dict1, epoch, pop_size, bout_size)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
     """
 
     def __init__(self, problem, epoch=10000, pop_size=100, bout_size=0.05, **kwargs):
         """
         Args:
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size (miu in the paper), default = 100
-            n_child (float/int): if float number --> percentage of child agents, int --> number of child agents
+            bout_size (float/int): if float number --> percentage of child agents, int --> number of child agents
         """
         super().__init__(problem, epoch, pop_size, bout_size, **kwargs)
         self.nfe_per_epoch = 2 * pop_size
         self.sort_flag = True
 
-    def evolve(self, mode='sequential', epoch=None, pop=None, g_best=None):
+    def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
@@ -117,7 +184,7 @@ class LevyEP(BaseEP):
         child = []
         for idx in range(0, self.pop_size):
             pos_new = self.pop[idx][self.ID_POS] + self.pop[idx][self.ID_STR] * np.random.normal(0, 1.0, self.problem.n_dims)
-            pos_new = self.amend_position_faster(pos_new)
+            pos_new = self.amend_position(pos_new)
             s_old = self.pop[idx][self.ID_STR] + np.random.normal(0, 1.0, self.problem.n_dims) * np.abs(self.pop[idx][self.ID_STR]) ** 0.5
             child.append([pos_new, None, s_old, 0])
         child = self.update_fitness_population(child)

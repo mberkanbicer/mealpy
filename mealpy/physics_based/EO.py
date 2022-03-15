@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-# ------------------------------------------------------------------------------------------------------%
-# Created by "Thieu Nguyen" at 07:03, 18/03/2020                                                        %
-#                                                                                                       %
-#       Email:      nguyenthieu2102@gmail.com                                                           %
-#       Homepage:   https://www.researchgate.net/profile/Thieu_Nguyen6                                  %
-#       Github:     https://github.com/thieu1995                                                        %
-#-------------------------------------------------------------------------------------------------------%
+# !/usr/bin/env python
+# Created by "Thieu" at 07:03, 18/03/2020 ----------%
+#       Email: nguyenthieu2102@gmail.com            %
+#       Github: https://github.com/thieu1995        %
+# --------------------------------------------------%
 
 import numpy as np
 from mealpy.optimizer import Optimizer
@@ -13,16 +10,44 @@ from mealpy.optimizer import Optimizer
 
 class BaseEO(Optimizer):
     """
-        The original version of: Equilibrium Optimizer (EO)
-            (Equilibrium Optimizer: A Novel Optimization Algorithm)
-        Link:
-            https://doi.org/10.1016/j.knosys.2019.105190
-            https://www.mathworks.com/matlabcentral/fileexchange/73352-equilibrium-optimizer-eo
+    The original version of: Equilibrium Optimizer (EO)
+
+    Links:
+        1. https://doi.org/10.1016/j.knosys.2019.105190
+        2. https://www.mathworks.com/matlabcentral/fileexchange/73352-equilibrium-optimizer-eo
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.physics_based.EO import BaseEO
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> model = BaseEO(problem_dict1, epoch, pop_size)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+
+    References
+    ~~~~~~~~~~
+    [1] Faramarzi, A., Heidarinejad, M., Stephens, B. and Mirjalili, S., 2020. Equilibrium optimizer: A novel
+    optimization algorithm. Knowledge-Based Systems, 191, p.105190.
     """
 
     def __init__(self, problem, epoch=10000, pop_size=100, **kwargs):
         """
         Args:
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
         """
@@ -41,12 +66,15 @@ class BaseEO(Optimizer):
     def make_equilibrium_pool(self, list_equilibrium=None):
         pos_list = [item[self.ID_POS] for item in list_equilibrium]
         pos_mean = np.mean(pos_list, axis=0)
+        pos_mean = self.amend_position(pos_mean)
         fit = self.get_fitness_position(pos_mean)
         list_equilibrium.append([pos_mean, fit])
         return list_equilibrium
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
@@ -67,33 +95,63 @@ class BaseEO(Optimizer):
             g0 = gcp * (c_eq - lamda * self.pop[idx][self.ID_POS])  # Eq. 14
             g = g0 * f  # Eq. 13
             pos_new = c_eq + (self.pop[idx][self.ID_POS] - c_eq) * f + (g * self.V / lamda) * (1.0 - f)  # Eq. 16
-            pos_new = self.amend_position_faster(pos_new)
+            pos_new = self.amend_position(pos_new)
             pop_new.append([pos_new, None])
         self.pop = self.update_fitness_population(pop_new)
 
 
 class ModifiedEO(BaseEO):
     """
-        Original version of: Modified Equilibrium Optimizer (MEO)
-            (An efficient equilibrium optimizer with mutation strategy for numerical optimization)
-    Link:
-        https://doi.org/10.1016/j.asoc.2020.106542
+    The original version of: Modified Equilibrium Optimizer (MEO)
+
+    Links:
+        1. https://doi.org/10.1016/j.asoc.2020.106542
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.physics_based.EO import ModifiedEO
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> model = ModifiedEO(problem_dict1, epoch, pop_size)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+
+    References
+    ~~~~~~~~~~
+    [1] Gupta, S., Deep, K. and Mirjalili, S., 2020. An efficient equilibrium optimizer with mutation
+    strategy for numerical optimization. Applied Soft Computing, 96, p.106542.
     """
 
     def __init__(self, problem, epoch=10000, pop_size=100, **kwargs):
         """
         Args:
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, epoch, pop_size, **kwargs)
-        self.nfe_per_epoch = 2*pop_size
+        self.nfe_per_epoch = 2 * pop_size
         self.sort_flag = False
 
         self.pop_len = int(self.pop_size / 3)
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
@@ -116,7 +174,7 @@ class ModifiedEO(BaseEO):
             g0 = gcp * (c_eq - lamda * self.pop[idx][self.ID_POS])  # Eq. 14
             g = g0 * f  # Eq. 13
             pos_new = c_eq + (self.pop[idx][self.ID_POS] - c_eq) * f + (g * self.V / lamda) * (1.0 - f)  # Eq. 16
-            pos_new = self.amend_position_faster(pos_new)
+            pos_new = self.amend_position(pos_new)
             pop_new.append([pos_new, None])
         pop_new = self.update_fitness_population(pop_new)
 
@@ -127,7 +185,7 @@ class ModifiedEO(BaseEO):
         pop_s2_new = []
         for i in range(0, self.pop_len):
             pos_new = pop_s1[i][self.ID_POS] * (1 + np.random.normal(0, 1, self.problem.n_dims))  # Eq. 12
-            pos_new = self.amend_position_faster(pos_new)
+            pos_new = self.amend_position(pos_new)
             pop_s2_new.append([pos_new, None])
         pop_s2 = self.update_fitness_population(pop_s2_new)
 
@@ -138,7 +196,7 @@ class ModifiedEO(BaseEO):
         for i in range(0, self.pop_len):
             pos_new = (c_pool[0][self.ID_POS] - pos_s1_mean) - np.random.random() * \
                       (self.problem.lb + np.random.random() * (self.problem.ub - self.problem.lb))
-            pos_new = self.amend_position_faster(pos_new)
+            pos_new = self.amend_position(pos_new)
             pop_s3.append([pos_new, None])
         pop_s3 = self.update_fitness_population(pop_s3)
 
@@ -152,15 +210,44 @@ class ModifiedEO(BaseEO):
 
 class AdaptiveEO(BaseEO):
     """
-        Original version of: Adaptive Equilibrium Optimization (AEO)
-            (A novel interdependence based multilevel thresholding technique using adaptive equilibrium optimizer)
-    Link:
-        https://doi.org/10.1016/j.engappai.2020.103836
+    The original version of: Adaptive Equilibrium Optimization (AEO)
+
+    Links:
+        1. https://doi.org/10.1016/j.engappai.2020.103836
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.physics_based.EO import AdaptiveEO
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> model = AdaptiveEO(problem_dict1, epoch, pop_size)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+
+    References
+    ~~~~~~~~~~
+    [1] Wunnava, A., Naik, M.K., Panda, R., Jena, B. and Abraham, A., 2020. A novel interdependence based
+    multilevel thresholding technique using adaptive equilibrium optimizer. Engineering Applications of
+    Artificial Intelligence, 94, p.103836.
     """
 
     def __init__(self, problem, epoch=10000, pop_size=100, **kwargs):
         """
         Args:
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
         """
@@ -172,6 +259,8 @@ class AdaptiveEO(BaseEO):
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
@@ -198,11 +287,10 @@ class AdaptiveEO(BaseEO):
             g0 = gcp * (c_eq - lamda * self.pop[idx][self.ID_POS])
             g = g0 * f
 
-            fit_average = np.mean([item[self.ID_FIT][self.ID_TAR] for item in self.pop])  # Eq. 19
+            fit_average = np.mean([item[self.ID_TAR][self.ID_FIT] for item in self.pop])  # Eq. 19
             pos_new = c_eq + (self.pop[idx][self.ID_POS] - c_eq) * f + (g * self.V / lamda) * (1.0 - f)  # Eq. 9
-            if self.pop[idx][self.ID_FIT][self.ID_TAR] >= fit_average:
+            if self.pop[idx][self.ID_TAR][self.ID_FIT] >= fit_average:
                 pos_new = np.multiply(pos_new, (0.5 + np.random.uniform(0, 1, self.problem.n_dims)))
-            pos_new = self.amend_position_faster(pos_new)
+            pos_new = self.amend_position(pos_new)
             pop_new.append([pos_new, None])
         self.pop = self.update_fitness_population(pop_new)
-

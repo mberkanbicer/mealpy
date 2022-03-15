@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-# ------------------------------------------------------------------------------------------------------%
-# Created by "Thieu" at 23:58, 14/12/2021                                                               %
-#                                                                                                       %
-#       Email:      nguyenthieu2102@gmail.com                                                           %
-#       Homepage:   https://www.researchgate.net/profile/Nguyen_Thieu2                                  %
-#       Github:     https://github.com/thieu1995                                                        %
-# ------------------------------------------------------------------------------------------------------%
+# !/usr/bin/env python
+# Created by "Thieu" at 23:58, 14/12/2021 ----------%
+#       Email: nguyenthieu2102@gmail.com            %
+#       Github: https://github.com/thieu1995        %
+# --------------------------------------------------%
 
 # https://machinelearningmastery.com/display-deep-learning-model-training-history-in-keras/
 
@@ -43,7 +40,7 @@ class HybridMlp:
 
     def create_problem(self):
         self.problem = {
-            "obj_func": self.objective_function,
+            "fit_func": self.fitness_function,
             "lb": [-1, ] * self.n_dims,
             "ub": [1, ] * self.n_dims,
             "minmax": "max",
@@ -78,7 +75,7 @@ class HybridMlp:
         # self.optimizer = FPA.BaseFPA(self.problem, self.epoch, self.pop_size)
         self.solution, self.best_fit = self.optimizer.solve()
 
-    def objective_function(self, solution):  # Used in training process
+    def fitness_function(self, solution):  # Used in training process
         # Assumption that we have 3 layer , 1 input layer, 1 hidden layer and 1 output layer
         # number of nodes are 3, 2, 3
         # solution = [w11, w21, w31, w12, w22, w32, b1, b2, wh11, wh21, wh12, wh22, wh13, wh23, bo1, bo2, bo3 ]

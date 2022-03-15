@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-# ------------------------------------------------------------------------------------------------------%
-# Created by "Thieu" at 23:59, 14/12/2021                                                               %
-#                                                                                                       %
-#       Email:      nguyenthieu2102@gmail.com                                                           %
-#       Homepage:   https://www.researchgate.net/profile/Nguyen_Thieu2                                  %
-#       Github:     https://github.com/thieu1995                                                        %
-# ------------------------------------------------------------------------------------------------------%
+# !/usr/bin/env python
+# Created by "Thieu" at 23:59, 14/12/2021 ----------%
+#       Email: nguyenthieu2102@gmail.com            %
+#       Github: https://github.com/thieu1995        %
+# --------------------------------------------------%
 
 # https://machinelearningmastery.com/how-to-develop-multilayer-perceptron-models-for-time-series-forecasting/
 
@@ -124,7 +121,7 @@ def decode_solution(solution):
     return [batch_size, epoch, opt, learning_rate, network_weight_initial, activation, n_hidden_units]
 
 
-def objective_function(solution):
+def fitness_function(solution):
     # batch_size = 2**int(solution[0])
     # # 1 -> 1.99 ==> 1
     # # 2 -> 2.99 ==> 2
@@ -186,7 +183,7 @@ X_train, y_train = split_sequence(scaled_seq[0:12], n_steps)
 X_test, y_test = split_sequence(scaled_seq[12:20], n_steps)
 
 problem = {
-    "obj_func": objective_function,
+    "fit_func": fitness_function,
     "lb": LB,
     "ub": UB,
     "minmax": "min",

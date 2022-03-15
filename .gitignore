@@ -1,9 +1,10 @@
-examples/bio_based/run_test_SMA2.py
+
 # Pycharm
 .idea/
 drafts/
-docs/
-commands.md
+assets/commands.md
+assets/ga_exam.py
+docs/build/
 testcase/
 
 # Byte-compiled / optimized / DLL files
@@ -77,7 +78,7 @@ instance/
 .scrapy
 
 # Sphinx documentation
-docs/_build/
+../whatisthis/sphinx-mealpy/real/docs/_build/
 
 # PyBuilder
 target/

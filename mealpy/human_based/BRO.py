@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-# ------------------------------------------------------------------------------------------------------%
-# Created by "Thieu" at 09:17, 09/11/2020                                                               %
-#                                                                                                       %
-#       Email:      nguyenthieu2102@gmail.com                                                           %
-#       Homepage:   https://www.researchgate.net/profile/Nguyen_Thieu2                                  %
-#       Github:     https://github.com/thieu1995                                                        %
-# ------------------------------------------------------------------------------------------------------%
+# !/usr/bin/env python
+# Created by "Thieu" at 09:17, 09/11/2020 ----------%
+#       Email: nguyenthieu2102@gmail.com            %
+#       Github: https://github.com/thieu1995        %
+# --------------------------------------------------%
 
 import numpy as np
 from scipy.spatial.distance import cdist
@@ -15,21 +12,48 @@ from mealpy.optimizer import Optimizer
 
 class BaseBRO(Optimizer):
     """
-        My best version of: Battle Royale Optimization (BRO)
-            (Battle royale optimization algorithm)
-        Link:
-            https://doi.org/10.1007/s00521-020-05004-4
+    My changed version of: Battle Royale Optimization (BRO)
+
+    Notes
+    ~~~~~
+    I change the flow of algorithm
+
+    Hyper-parameters should fine tuned in approximate range to get faster convergen toward the global optimum:
+        + threshold (int): [2, 5], dead threshold, default=3
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.human_based.BRO import BaseBRO
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> threshold = 3
+    >>> model = BaseBRO(problem_dict1, epoch, pop_size, threshold)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
     """
+
     ID_DAM = 2
 
     def __init__(self, problem, epoch=10000, pop_size=100, threshold=3, **kwargs):
         """
         Args:
-            problem ():
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
             threshold (int): dead threshold, default=3
-            **kwargs ():
         """
         super().__init__(problem, kwargs)
         self.nfe_per_epoch = pop_size
@@ -45,57 +69,68 @@ class BaseBRO(Optimizer):
 
     def create_solution(self):
         """
-        Returns:
-            The position position with 2 element: index of position/location and index of fitness wrapper
-            The general format: [position, [target, [obj1, obj2, ...]]]
+        To get the position, fitness wrapper, target and obj list
+            + A[self.ID_POS]                  --> Return: position
+            + A[self.ID_TAR]                  --> Return: [target, [obj1, obj2, ...]]
+            + A[self.ID_TAR][self.ID_FIT]     --> Return: target
+            + A[self.ID_TAR][self.ID_OBJ]     --> Return: [obj1, obj2, ...]
 
-        ## To get the position, fitness wrapper, target and obj list
-        ##      A[self.ID_POS]                  --> Return: position
-        ##      A[self.ID_FIT]                  --> Return: [target, [obj1, obj2, ...]]
-        ##      A[self.ID_FIT][self.ID_TAR]     --> Return: target
-        ##      A[self.ID_FIT][self.ID_OBJ]     --> Return: [obj1, obj2, ...]
+        Returns:
+            list: wrapper of solution with format [position, [target, [obj1, obj2, ...]], damage]
         """
         position = np.random.uniform(self.problem.lb, self.problem.ub)
+        position = self.amend_position(position)
         fitness = self.get_fitness_position(position=position)
         damage = 0
         return [position, fitness, damage]
 
-    def find_argmin_distance(self, target_pos=None, pop=None):
+    def __get_min_idx(self, data):
+        k_zero = np.count_nonzero(data == 0)
+        if k_zero == len(data):
+            return np.random.choice(range(0, k_zero))
+        ## 1st: Partition sorting, not good solution here.
+        # return np.argpartition(data, k_zero)[k_zero]
+        ## 2nd: Faster
+        return np.where(data == np.min(data[data != 0]))[0][0]
+
+    def find_idx_min_distance(self, target_pos=None, pop=None):
         list_pos = np.array([pop[idx][self.ID_POS] for idx in range(0, self.pop_size)])
         target_pos = np.reshape(target_pos, (1, -1))
         dist_list = cdist(list_pos, target_pos, 'euclidean')
         dist_list = np.reshape(dist_list, (-1))
-        idx = np.argmin(dist_list[np.nonzero(dist_list)])
-        return idx
+        return self.__get_min_idx(dist_list)
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
         nfe_epoch = 0
         for i in range(self.pop_size):
             # Compare ith soldier with nearest one (jth)
-            j = self.find_argmin_distance(self.pop[i][self.ID_POS], self.pop)
+            j = self.find_idx_min_distance(self.pop[i][self.ID_POS], self.pop)
             if self.compare_agent(self.pop[i], self.pop[j]):
                 ## Update Winner based on global best solution
                 pos_new = self.pop[i][self.ID_POS] + np.random.uniform() * \
                           np.mean(np.array([self.pop[i][self.ID_POS], self.g_best[self.ID_POS]]), axis=0)
+                pos_new = self.amend_position(pos_new)
                 fit_new = self.get_fitness_position(pos_new)
                 dam_new = self.pop[i][self.ID_DAM] - 1  ## Substract damaged hurt -1 to go next battle
                 self.pop[i] = [pos_new, fit_new, dam_new]
                 ## Update Loser
                 if self.pop[j][self.ID_DAM] < self.threshold:  ## If loser not dead yet, move it based on general
                     pos_new = np.random.uniform() * (np.maximum(self.pop[j][self.ID_POS], self.g_best[self.ID_POS]) -
-                                                       np.minimum(self.pop[j][self.ID_POS], self.g_best[self.ID_POS])) + \
-                                          np.maximum(self.pop[j][self.ID_POS], self.g_best[self.ID_POS])
+                                                     np.minimum(self.pop[j][self.ID_POS], self.g_best[self.ID_POS])) + \
+                              np.maximum(self.pop[j][self.ID_POS], self.g_best[self.ID_POS])
                     dam_new = self.pop[j][self.ID_DAM] + 1
 
-                    self.pop[j][self.ID_FIT] = self.get_fitness_position(self.pop[j][self.ID_POS])
+                    self.pop[j][self.ID_TAR] = self.get_fitness_position(self.pop[j][self.ID_POS])
                 else:  ## Loser dead and respawn again
                     pos_new = np.random.uniform(self.problem.lb, self.problem.ub)
                     dam_new = 0
-                pos_new = self.amend_position_faster(pos_new)
+                pos_new = self.amend_position(pos_new)
                 fit_new = self.get_fitness_position(pos_new)
                 self.pop[j] = [pos_new, fit_new, dam_new]
                 nfe_epoch += 2
@@ -104,7 +139,7 @@ class BaseBRO(Optimizer):
                 self.pop[i] = deepcopy(self.pop[j])
                 ## Update Winner by following position of General to protect the King and General
                 pos_new = self.pop[j][self.ID_POS] + np.random.uniform() * (self.g_best[self.ID_POS] - self.pop[j][self.ID_POS])
-                pos_new = self.amend_position_faster(pos_new)
+                pos_new = self.amend_position(pos_new)
                 fit_new = self.get_fitness_position(pos_new)
                 dam_new = 0
                 self.pop[j] = [pos_new, fit_new, dam_new]
@@ -122,15 +157,46 @@ class BaseBRO(Optimizer):
 
 class OriginalBRO(BaseBRO):
     """
-        The original version of: Battle Royale Optimization (BRO)
-            (Battle royale optimization algorithm)
-        Link:
-            https://doi.org/10.1007/s00521-020-05004-4
-        - Original category: Human-based
+    The original version of: Battle Royale Optimization (BRO)
+
+    Links:
+        1. https://doi.org/10.1007/s00521-020-05004-4
+
+    Hyper-parameters should fine tuned in approximate range to get faster convergen toward the global optimum:
+        + threshold (int): [2, 5], dead threshold, default=3
+
+    Examples
+    ~~~~~~~~
+    >>> import numpy as np
+    >>> from mealpy.human_based.BRO import BaseBRO
+    >>>
+    >>> def fitness_function(solution):
+    >>>     return np.sum(solution**2)
+    >>>
+    >>> problem_dict1 = {
+    >>>     "fit_func": fitness_function,
+    >>>     "lb": [-10, -15, -4, -2, -8],
+    >>>     "ub": [10, 15, 12, 8, 20],
+    >>>     "minmax": "min",
+    >>>     "verbose": True,
+    >>> }
+    >>>
+    >>> epoch = 1000
+    >>> pop_size = 50
+    >>> threshold = 3
+    >>> model = BaseBRO(problem_dict1, epoch, pop_size, threshold)
+    >>> best_position, best_fitness = model.solve()
+    >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
+
+    References
+    ~~~~~~~~~~
+    [1] Rahkar Farshi, T., 2021. Battle royale optimization algorithm. Neural Computing and Applications, 33(4), pp.1139-1157.
     """
+
     def __init__(self, problem, epoch=10000, pop_size=100, threshold=3, **kwargs):
         """
         Args:
+            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
             threshold (int): dead threshold, default=3
@@ -141,22 +207,24 @@ class OriginalBRO(BaseBRO):
 
     def evolve(self, epoch):
         """
+        The main operations (equations) of algorithm. Inherit from Optimizer class
+
         Args:
             epoch (int): The current iteration
         """
         for i in range(self.pop_size):
             # Compare ith soldier with nearest one (jth)
-            j = self.find_argmin_distance(self.pop[i][self.ID_POS], self.pop)
+            j = self.find_idx_min_distance(self.pop[i][self.ID_POS], self.pop)
             dam, vic = i, j  ## This error in the algorithm's flow in the paper, But in the matlab code, he changed.
             if self.compare_agent(self.pop[i], self.pop[j]):
                 dam, vic = j, i  ## The mistake also here in the paper.
             if self.pop[dam][self.ID_DAM] < self.threshold:
                 pos_new = np.random.uniform(0, 1, self.problem.n_dims) * \
                           (np.maximum(self.pop[dam][self.ID_POS], self.g_best[self.ID_POS]) -
-                            np.minimum(self.pop[dam][self.ID_POS], self.g_best[self.ID_POS])) + \
-                            np.maximum(self.pop[dam][self.ID_POS], self.g_best[self.ID_POS])
-                self.pop[dam][self.ID_POS] = self.amend_position_faster(pos_new)
-                self.pop[dam][self.ID_FIT] = self.get_fitness_position(self.pop[dam][self.ID_POS])
+                           np.minimum(self.pop[dam][self.ID_POS], self.g_best[self.ID_POS])) + \
+                          np.maximum(self.pop[dam][self.ID_POS], self.g_best[self.ID_POS])
+                self.pop[dam][self.ID_POS] = self.amend_position(pos_new)
+                self.pop[dam][self.ID_TAR] = self.get_fitness_position(self.pop[dam][self.ID_POS])
                 self.pop[dam][self.ID_DAM] += 1
                 self.pop[vic][self.ID_DAM] = 0
             else:
@@ -169,4 +237,3 @@ class OriginalBRO(BaseBRO):
             self.problem.lb = np.clip(lb, self.problem.lb, self.problem.ub)
             self.problem.ub = np.clip(ub, self.problem.lb, self.problem.ub)
             self.dyn_delta += round(self.dyn_delta / 2)
-
