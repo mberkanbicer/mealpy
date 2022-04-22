@@ -30,7 +30,6 @@ class OriginalALO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -52,8 +51,8 @@ class OriginalALO(Optimizer):
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, kwargs)
-        self.epoch = epoch
-        self.pop_size = pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
 
         self.nfe_per_epoch = self.pop_size
         self.sort_flag = True
@@ -121,9 +120,9 @@ class OriginalALO(Optimizer):
             temp = (RA[:, epoch] + RE[:, epoch]) / 2  # Equation(2.13) in the paper
 
             # Bound checking (bring back the antlions of ants inside search space if they go beyonds the boundaries
-            pos_new = self.amend_position(temp)
+            pos_new = self.amend_position(temp, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
 
         # Update antlion positions and fitnesses based of the ants (if an ant becomes fitter than an antlion we
         #   assume it was caught by the antlion and the antlion update goes to its position to build the trap)
@@ -155,7 +154,6 @@ class BaseALO(OriginalALO):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000

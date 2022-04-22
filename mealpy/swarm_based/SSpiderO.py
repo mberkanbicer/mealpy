@@ -17,7 +17,7 @@ class BaseSSpiderO(Optimizer):
         1. https://www.hindawi.com/journals/mpe/2018/6843923/
 
     Hyper-parameters should fine tuned in approximate range to get faster convergen toward the global optimum:
-        + fp (list): (fp_min, fp_max): Female Percent, default = (0.65, 0.9)
+        + fp (list, tuple): (fp_min, fp_max): Female Percent, default = (0.65, 0.9)
 
     Examples
     ~~~~~~~~
@@ -32,7 +32,6 @@ class BaseSSpiderO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -59,14 +58,15 @@ class BaseSSpiderO(Optimizer):
             problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
-            fp (list): (fp_min, fp_max): Female Percent, default = (0.65, 0.9)
+            fp (list, tuple): (fp_min, fp_max): Female Percent, default = (0.65, 0.9)
         """
         super().__init__(problem, kwargs)
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.fp = fp
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        fp = self.validator.check_tuple_float("fp (min, max)", fp, ((0, 1.0), (0, 1.0)))
+        self.fp = (min(fp), max(fp))
 
-    def create_solution(self):
+    def create_solution(self, lb=None, ub=None):
         """
         To get the position, fitness wrapper, target and obj list
             + A[self.ID_POS]                  --> Return: position
@@ -75,30 +75,32 @@ class BaseSSpiderO(Optimizer):
             + A[self.ID_TAR][self.ID_OBJ]     --> Return: [obj1, obj2, ...]
 
         Returns:
-            list: wrapper of solution with format [position, [target, [obj1, obj2, ...]], weight]
+            list: wrapper of solution with format [position, target, weight]
         """
-        position = np.random.uniform(self.problem.lb, self.problem.ub)
-        position = self.amend_position(position)
-        fitness = self.get_fitness_position(position)
+        position = np.random.uniform(lb, ub)
+        position = self.amend_position(position, lb, ub)
+        target = self.get_target_wrapper(position)
         weight = 0.0
-        return [position, fitness, weight]
+        return [position, target, weight]
 
-    def amend_position(self, position=None):
+    def amend_position(self, position=None, lb=None, ub=None):
         """
-        If solution out of bound at dimension x, then it will re-arrange to random location in the range of domain
+        Depend on what kind of problem are we trying to solve, there will be an different amend_position
+        function to rebound the position of agent into the valid range.
 
         Args:
             position: vector position (location) of the solution.
+            lb: list of lower bound values
+            ub: list of upper bound values
 
         Returns:
-            Amended position
+            Amended position (make the position is in bound)
         """
-        return np.where(np.logical_and(self.problem.lb <= position, position <= self.problem.ub),
-                        position, np.random.uniform(self.problem.lb, self.problem.ub))
+        return np.where(np.logical_and(lb <= position, position <= ub), position, np.random.uniform(lb, ub))
 
     def initialization(self):
-        self.fp = self.fp[0] + (self.fp[1] - self.fp[0]) * np.random.uniform()  # Female Aleatory Percent
-        self.n_f = int(self.pop_size * self.fp)  # number of female
+        fp_temp = self.fp[0] + (self.fp[1] - self.fp[0]) * np.random.uniform()  # Female Aleatory Percent
+        self.n_f = int(self.pop_size * fp_temp)  # number of female
         self.n_m = self.pop_size - self.n_f  # number of male
         # Probabilities of attraction or repulsion Proper tuning for better results
         self.p_m = (self.epoch + 1 - np.array(range(1, self.epoch + 1))) / (self.epoch + 1)
@@ -143,8 +145,8 @@ class BaseSSpiderO(Optimizer):
             else:  # Do a repulsion
                 pos_new = self.pop_females[i][self.ID_POS] - vibs * (x_s - self.pop_females[i][self.ID_POS]) * beta - \
                           vibb * (self.g_best[self.ID_POS] - self.pop_females[i][self.ID_POS]) * gamma + random
-            self.pop_females[i][self.ID_POS] = self.amend_position(pos_new)
-        self.pop_females = self.update_fitness_population(self.pop_females)
+            self.pop_females[i][self.ID_POS] = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
+        self.pop_females = self.update_target_wrapper_population(self.pop_females)
         self.nfe_epoch += self.n_f
 
     def _move_males(self, epoch=None):
@@ -182,8 +184,8 @@ class BaseSSpiderO(Optimizer):
             else:
                 # Spider below median, go to weighted mean
                 pos_new = self.pop_males[i][self.ID_POS] + delta * (mean - self.pop_males[i][self.ID_POS]) + random
-            self.pop_males[i][self.ID_POS] = self.amend_position(pos_new)
-        self.pop_males = self.update_fitness_population(self.pop_males)
+            self.pop_males[i][self.ID_POS] = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
+        self.pop_males = self.update_target_wrapper_population(self.pop_males)
         self.nfe_epoch += self.n_m
 
     ### Crossover
@@ -238,12 +240,12 @@ class BaseSSpiderO(Optimizer):
             n_child = len(couples)
             for k in range(n_child):
                 child1, child2 = self._crossover__(couples[k][0][self.ID_POS], couples[k][1][self.ID_POS], 0)
-                pos1 = self.amend_position(child1)
-                pos2 = self.amend_position(child2)
-                fit1 = self.get_fitness_position(pos1)
-                fit2 = self.get_fitness_position(pos2)
-                list_child.append([pos1, fit1, 0.0])
-                list_child.append([pos2, fit2, 0.0])
+                pos1 = self.amend_position(child1, self.problem.lb, self.problem.ub)
+                pos2 = self.amend_position(child2, self.problem.lb, self.problem.ub)
+                target1 = self.get_target_wrapper(pos1)
+                target2 = self.get_target_wrapper(pos2)
+                list_child.append([pos1, target1, 0.0])
+                list_child.append([pos2, target2, 0.0])
 
         else:
             list_child = self.create_population(self.pop_size)

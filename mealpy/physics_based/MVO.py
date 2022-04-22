@@ -36,7 +36,6 @@ class BaseMVO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -58,13 +57,12 @@ class BaseMVO(Optimizer):
             wep_max (float: Wormhole Existence Probability (max in Eq.(3.3) paper, default = 1.0
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.wep_min = self.validator.check_float("wep_min", wep_min, [0.01, 0.3])
+        self.wep_max = self.validator.check_float("wep_max", wep_max, [0.31, 1.0])
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = True
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.wep_min = wep_min
-        self.wep_max = wep_max
 
     def evolve(self, epoch):
         """
@@ -89,10 +87,10 @@ class BaseMVO(Optimizer):
                 black_hole_pos_2 = self.g_best[self.ID_POS] + tdr * np.random.normal(0, 1) * (self.g_best[self.ID_POS] - self.pop[idx][self.ID_POS])
                 black_hole_pos = np.where(np.random.uniform(0, 1, self.problem.n_dims) < 0.5, black_hole_pos_1, black_hole_pos_2)
             else:
-                black_hole_pos = np.random.uniform(self.problem.lb, self.problem.ub)
-            pos_new = self.amend_position(black_hole_pos)
+                black_hole_pos = self.generate_position(self.problem.lb, self.problem.ub)
+            pos_new = self.amend_position(black_hole_pos, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         self.pop = self.greedy_selection_population(self.pop, pop_new)
 
 
@@ -121,7 +119,6 @@ class OriginalMVO(BaseMVO):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -148,7 +145,7 @@ class OriginalMVO(BaseMVO):
             wep_max (float: Wormhole Existence Probability (max in Eq.(3.3) paper, default = 1.0
         """
         super().__init__(problem, epoch, pop_size, wep_min, wep_max, **kwargs)
-        self.nfe_per_epoch = pop_size
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = True
 
     # sorted_inflation_rates
@@ -217,6 +214,6 @@ class OriginalMVO(BaseMVO):
                         black_hole_pos[j] = self.g_best[self.ID_POS][j] + tdr * np.random.uniform(self.problem.lb[j], self.problem.ub[j])
                     else:
                         black_hole_pos[j] = self.g_best[self.ID_POS][j] - tdr * np.random.uniform(self.problem.lb[j], self.problem.ub[j])
-            pos_new = self.amend_position(black_hole_pos)
+            pos_new = self.amend_position(black_hole_pos, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        self.pop = self.update_fitness_population(pop_new)
+        self.pop = self.update_target_wrapper_population(pop_new)

@@ -4,6 +4,10 @@
 #       Github: https://github.com/thieu1995        %
 # --------------------------------------------------%
 
+from mealpy.utils.logger import Logger
+from mealpy.utils.boundary import is_in_bound, is_str_in_list
+
+
 class Termination:
     """
     Define the Stopping Condition (Termination) for the Optimizer
@@ -21,11 +25,10 @@ class Termination:
     + Parameters for Termination class
         + mode (str): FE, MG, ES or TB
         + quantity (int): value for termination type
-        + problem (dict): dictionary of the termination (contains at least the parameter 'mode' and 'quantity') (Optional)
+        + termination (dict): dictionary of the termination (contains at least the parameter 'mode' and 'quantity') (Optional)
 
     Examples
     ~~~~~~~~
-    >>> ## 1st way to define and use termination object
     >>> import numpy as np
     >>> from mealpy.swarm_based.PSO import BasePSO
     >>>
@@ -43,29 +46,21 @@ class Termination:
     >>>     "quantity": 100000  # 100000 number of function evaluation
     >>> }
     >>> model1 = BasePSO(problem_dict, epoch=1000, pop_size=50, termination=term_dict)
-    >>>
-    >>> ## 2nd and 3rd ways:
-    >>> from mealpy.utils.termination import Termination
-    >>>
-    >>> term_obj2 = Termination(termination = term_dict)
-    >>> model2 = BasePSO(problem_dict, epoch=1000, pop_size=50, termination=term_obj2)
-    >>>
-    >>> term_obj3 = Termination(termination = term_dict)
-    >>> model3 = BasePSO(problem_dict, epoch=1000, pop_size=50, termination=term_obj3)
     """
 
-    DEFAULT_MAX_MG = 1000  # Maximum number of epochs / generations (Default: 1000 epochs)
-    DEFAULT_MAX_FE = 100000  # Maximum number of function evaluation (Default: 100000 FE)
-    DEFAULT_MAX_TB = 20  # Maximum number of time bound (Default: 20 seconds)
-    DEFAULT_MAX_ES = 20  # Maximum number of early stopping iterations (Default: 20 loops / generations)
+    SUPPORTED_TERMINATIONS = {
+        "FE": ["Function Evaluation", [10, 1000000000]],
+        "ES": ["Early Stopping", [1, 1000000]],
+        "TB": ["Time Bound", [10, 1000000]],
+        "MG": ["Maximum Generation", [1, 1000000]],
+    }
 
     def __init__(self, **kwargs):
-        self.name = "Maximum Generation"
-        self.mode = "MG"
-        self.quantity = self.DEFAULT_MAX_MG
-        self.exit_flag, self.message = False, ""
-
+        self.exit_flag, self.message, self.log_to, self.log_file = False, "", None, None
         self.__set_keyword_arguments(kwargs)
+        self.logger = Logger(self.log_to, log_file=self.log_file).create_logger(name=f"{__name__}.{__class__.__name__}",
+            format_str='%(asctime)s, %(levelname)s, %(name)s [line: %(lineno)d]: %(message)s')
+        self.logger.propagate = False
         self.__check_termination(kwargs)
 
     def __set_keyword_arguments(self, kwargs):
@@ -75,51 +70,32 @@ class Termination:
     def __check_termination(self, kwargs):
         if ("mode" in kwargs) and ("quantity" in kwargs):
             self.__check_mode(kwargs["mode"], kwargs["quantity"])
-        else:
-            if "termination" in kwargs:
-                termination = kwargs["termination"]
-                if type(termination) is dict:
-                    if ("mode" in termination) and ("quantity" in termination):
-                        self.__check_mode(termination["mode"], termination["quantity"])
-                    else:
-                        self.__set_error_message(True, "You need to set up the termination dictionary with at least 'mode' and 'quantity'.")
-                else:
-                    self.__set_error_message(True, "You need to set up the termination dictionary with at least 'mode' and 'quantity'.")
+        elif ("termination" in kwargs) and type(kwargs["termination"] is dict):
+            if ("mode" in kwargs["termination"]) and ("quantity" in kwargs["termination"]):
+                self.__set_keyword_arguments(kwargs["termination"])
+                self.__check_mode(kwargs["termination"]["mode"], kwargs["termination"]["quantity"])
             else:
-                self.__set_error_message(True, "You need to set up the termination dictionary with at least 'mode' and 'quantity'.")
-        if self.exit_flag:
-            print(self.message)
-            exit(0)
+                self.logger.error("You need to set up the termination dictionary with at least 'mode' and 'quantity'.")
+                exit(0)
         else:
-            print(f"Stopping condition mode: {self.name}, with maximum value is: {self.quantity}")
+            self.logger.error("You need to set up the termination dictionary with at least 'mode' and 'quantity'.")
+            exit(0)
 
     def __check_mode(self, mode, quantity):
-        if type(mode) == str:
+        if is_str_in_list(mode, list(self.SUPPORTED_TERMINATIONS.keys())):
             self.mode = mode
-            if mode == "FE":
-                self.name = "Function Evaluation"
-                self.__check_quantity(quantity, self.DEFAULT_MAX_FE)
-            elif self.mode == "TB":
-                self.name = "Time Bound"
-                self.__check_quantity(quantity, self.DEFAULT_MAX_TB)
-            elif self.mode == "ES":
-                self.name = "Early Stopping"
-                self.__check_quantity(quantity, self.DEFAULT_MAX_ES)
-            elif self.mode == "MG":
-                self.name = "Maximum Generation"
-                self.__check_quantity(quantity, self.DEFAULT_MAX_MG)
+            self.name = self.SUPPORTED_TERMINATIONS[mode][0]
+
+            if type(quantity) in [int, float]:
+                qt = int(quantity)
+                if is_in_bound(qt, self.SUPPORTED_TERMINATIONS[mode][1]):
+                    self.quantity = qt
+                else:
+                    self.logger.error(f"Mode: {mode}, 'quantity' is an integer and should be in range: {self.SUPPORTED_TERMINATIONS[mode][1]}.")
+                    exit(0)
             else:
-                self.__set_error_message(True, "Your stopping condition is not support. Please choice other one.")
+                self.logger.error(f"Mode: {mode}, 'quantity' is an integer and should be in range: {self.SUPPORTED_TERMINATIONS[mode][1]}.")
+                exit(0)
         else:
-            self.__set_error_message(True, "Please set up your termination mode and quantity.")
-
-    def __set_error_message(self, flag, message):
-        self.exit_flag = flag
-        self.message = message
-
-    def __check_quantity(self, quantity, default_value):
-        self.quantity = quantity if (type(quantity) is int and quantity > 0) else default_value
-
-    def logging(self, verbose=True):
-        if verbose:
-            print(f"Stopping criterion with mode {self.name} occurs. End program!")
+            self.logger.error("Supported termination mode: FE (function evaluation), TB (time bound), ES (early stopping), MG (maximum generation).")
+            exit(0)

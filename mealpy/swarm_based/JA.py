@@ -30,7 +30,6 @@ class BaseJA(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -53,11 +52,10 @@ class BaseJA(Optimizer):
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = False
-
-        self.epoch = epoch
-        self.pop_size = pop_size
 
     def evolve(self, epoch):
         """
@@ -72,9 +70,9 @@ class BaseJA(Optimizer):
         for idx in range(0, self.pop_size):
             pos_new = self.pop[idx][self.ID_POS] + np.random.uniform() * (g_best[self.ID_POS] - np.abs(self.pop[idx][self.ID_POS])) + \
                       np.random.normal() * (g_worst[self.ID_POS] - np.abs(self.pop[idx][self.ID_POS]))
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        self.pop = self.update_fitness_population(pop_new)
+        self.pop = self.update_target_wrapper_population(pop_new)
 
 
 class OriginalJA(BaseJA):
@@ -97,7 +95,6 @@ class OriginalJA(BaseJA):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -135,9 +132,9 @@ class OriginalJA(BaseJA):
             pos_new = self.pop[idx][self.ID_POS] + np.random.uniform(0, 1, self.problem.n_dims) * \
                       (g_best[self.ID_POS] - np.abs(self.pop[idx][self.ID_POS])) - \
                       np.random.uniform(0, 1, self.problem.n_dims) * (g_worst[self.ID_POS] - np.abs(self.pop[idx][self.ID_POS]))
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        self.pop = self.update_fitness_population(pop_new)
+        self.pop = self.update_target_wrapper_population(pop_new)
 
 
 class LevyJA(BaseJA):
@@ -165,7 +162,6 @@ class LevyJA(BaseJA):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -206,6 +202,6 @@ class LevyJA(BaseJA):
             L2 = self.get_levy_flight_step(multiplier=1.0, beta=1.0, case=-1)
             pos_new = self.pop[idx][self.ID_POS] + np.abs(L1) * (g_best[self.ID_POS] - np.abs(self.pop[idx][self.ID_POS])) - \
                       np.abs(L2) * (g_worst[self.ID_POS] - np.abs(self.pop[idx][self.ID_POS]))
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        self.pop = self.update_fitness_population(pop_new)
+        self.pop = self.update_target_wrapper_population(pop_new)

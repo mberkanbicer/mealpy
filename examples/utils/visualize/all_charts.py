@@ -25,8 +25,7 @@ problem = {
     "lb": [-10, -5, -15, -20],
     "ub": [10, 5, 15, 20],
     "minmax": "min",
-    "verbose": True,
-    "obj_weight": [0.2, 0.5, 0.3]
+    "obj_weights": [0.2, 0.5, 0.3]
 }
 
 ## Run the algorithm
@@ -81,5 +80,5 @@ model.history.save_local_best_fitness_chart(filename="hello/lbfc")
 model.history.save_runtime_chart(filename="hello/rtc")
 model.history.save_exploration_exploitation_chart(filename="hello/eec")
 model.history.save_diversity_chart(filename="hello/dc")
-model.history.save_trajectory_chart(list_agent_idx=[3, 5], list_dimensions=[2], filename="hello/tc")
+model.history.save_trajectory_chart(list_agent_idx=[3, 5], selected_dimensions=[2], filename="hello/tc")
 

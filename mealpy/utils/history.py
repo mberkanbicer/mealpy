@@ -6,6 +6,7 @@
 
 import numpy as np
 from copy import deepcopy
+from mealpy.utils.logger import Logger
 from mealpy.utils.visualize import export_convergence_chart, export_explore_exploit_chart, \
     export_diversity_chart, export_objectives_chart, export_trajectory_chart
 
@@ -26,8 +27,8 @@ class History:
         + list_exploitation: List of EXPLOITATION percentages for all generations
         + list_exploration: List of EXPLORATION percentages for all generations
         + list_population: List of POPULATION in each generations
-        + **Warning**, the last variable 'list_population' can cause the error related to 'memory' when using pickle to save model.\
-            Better to delete that variable or assign to empty list [] to reduce the 'memory'.
+        + **Warning**, the last variable 'list_population' can cause the error related to 'memory' when saving model.
+            Better to set parameter 'save_population' to False in the input problem dictionary to not using it.
 
     + There are 8 methods to draw available in this class:
         + save_global_best_fitness_chart()
@@ -53,6 +54,7 @@ class History:
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
     >>>     "verbose": True,
+    >>>     "save_population": False        # Then you can't draw the trajectory chart
     >>> }
     >>> model = BasePSO(problem_dict, epoch=1000, pop_size=50)
     >>>
@@ -63,26 +65,34 @@ class History:
     >>> model.history.save_runtime_chart(filename="hello/rtc")
     >>> model.history.save_exploration_exploitation_chart(filename="hello/eec")
     >>> model.history.save_diversity_chart(filename="hello/dc")
-    >>> model.history.save_trajectory_chart(list_agent_idx=[3, 5], list_dimensions=[3], filename="hello/tc")
+    >>> model.history.save_trajectory_chart(list_agent_idx=[3, 5], selected_dimensions=[3], filename="hello/tc")
     >>>
-    >>> ## Get list of population after all generations
-    >>> print(model.history.list_population)
+    >>> ## Get list of global best solution after all generations
+    >>> print(model.history.list_global_best)
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.list_global_best = []  # List of global best solution found so far in all previous generations
         self.list_current_best = []  # List of current best solution in each previous generations
         self.list_epoch_time = []  # List of runtime for each generation
         self.list_global_best_fit = []  # List of global best fitness found so far in all previous generations
         self.list_current_best_fit = []  # List of current best fitness in each previous generations
         self.list_population = []  # List of population in each generations
-        self.list_diversity = None  # List of diversity of swarm in all generations
-        self.list_exploitation = None  # List of exploitation percentages for all generations
-        self.list_exploration = None  # List of exploration percentages for all generations
+        self.list_diversity = []  # List of diversity of swarm in all generations
+        self.list_exploitation = []  # List of exploitation percentages for all generations
+        self.list_exploration = []  # List of exploration percentages for all generations
+        self.epoch, self.log_to, self.log_file = None, None, None
+        self.__set_keyword_arguments(kwargs)
+        self.logger = Logger(self.log_to, log_file=self.log_file).create_logger(name=f"{__name__}.{__class__.__name__}",
+            format_str='%(asctime)s, %(levelname)s, %(name)s [line: %(lineno)d]: %(message)s')
+
+    def __set_keyword_arguments(self, kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
     def save_initial_best(self, best_agent):
-        self.list_global_best = [best_agent]
-        self.list_current_best = deepcopy(self.list_global_best)
+        self.list_global_best = [deepcopy(best_agent)]
+        self.list_current_best = [deepcopy(best_agent)]
 
     def get_global_repeated_times(self, id_fitness, id_target, epsilon):
         count = 0
@@ -148,27 +158,30 @@ class History:
                                 filename=filename, verbose=verbose)
 
     def save_trajectory_chart(self, title="Trajectory of some first agents after generations",
-                              list_agent_idx=(1, 2, 3), list_dimensions=(1, 2),
+                              list_agent_idx=(1, 2, 3), selected_dimensions=(1, 2),
                               filename="trajectory-chart", verbose=True):
+        if len(self.list_population) < 2:
+            self.logger.error("Can't draw the trajectory because 'save_population' is set to False or the number of epochs is too small.")
+            exit(0)
         ## Drawing trajectory of some agents in the first and second dimensions
         # Need a little bit more pre-processing
         list_agent_idx = set(list_agent_idx)
-        list_dimensions = set(list_dimensions)
+        selected_dimensions = set(selected_dimensions)
         list_agent_idx = sorted(list_agent_idx)
-        list_dimensions = sorted(list_dimensions)
-        n_dim = len(list_dimensions)
+        selected_dimensions = sorted(selected_dimensions)
+        n_dim = len(selected_dimensions)
 
         if n_dim not in [1, 2]:
-            print("Can draw trajectory only for 1 or 2 dimensions!")
+            self.logger.error("Trajectory chart for more than 2 dimensions is not supported.")
             exit(0)
         if len(list_agent_idx) < 1 or len(list_agent_idx) > 10:
-            print("Can draw trajectory for 1 to 10 agents only!")
+            self.logger.error("Trajectory chart for more than 10 agents is not supported.")
             exit(0)
         if list_agent_idx[-1] > len(self.list_population[0]) or list_agent_idx[0] < 1:
-            print(f"The index of input agent should be in range of [1, {len(self.list_population[0])}]")
+            self.logger.error(f"Can't draw trajectory chart, the index of selected agents should be in range of [1, {len(self.list_population[0])}]")
             exit(0)
-        if list_dimensions[-1] > len(self.list_population[0][0][0]) or list_dimensions[0] < 1:
-            print(f"The index of dimension should be in range of [1, {len(self.list_population[0][0][0])}]")
+        if selected_dimensions[-1] > len(self.list_population[0][0][0]) or selected_dimensions[0] < 1:
+            self.logger.error(f"Can't draw trajectory chart, the index of selected dimensions should be in range of [1, {len(self.list_population[0][0][0])}]")
             exit(0)
 
         pos_list = []
@@ -178,19 +191,19 @@ class History:
         # pop[0][0]: Get the position of the first solution
         # pop[0][0][0]: Get the first dimension of the position of the first solution
         if n_dim == 1:
-            y_label = f"x{list_dimensions[0]}"
+            y_label = f"x{selected_dimensions[0]}"
             for idx, id_agent in enumerate(list_agent_idx):
-                x = [pop[id_agent - 1][0][list_dimensions[0] - 1] for pop in self.list_population]
+                x = [pop[id_agent - 1][0][selected_dimensions[0] - 1] for pop in self.list_population]
                 pos_list.append(x)
                 list_legends.append(f"Agent {id_agent}.")
             export_trajectory_chart(pos_list, n_dimensions=n_dim, title=title, list_legends=list_legends,
                                     y_label=y_label, filename=filename, verbose=verbose)
         elif n_dim == 2:
-            x_label = f"x{list_dimensions[0]}"
-            y_label = f"x{list_dimensions[1]}"
+            x_label = f"x{selected_dimensions[0]}"
+            y_label = f"x{selected_dimensions[1]}"
             for idx1, id_agent in enumerate(list_agent_idx):
                 pos_temp = []
-                for idx2, id_dim in enumerate(list_dimensions):
+                for idx2, id_dim in enumerate(selected_dimensions):
                     x = [pop[id_agent - 1][0][id_dim - 1] for pop in self.list_population]
                     pos_temp.append(x)
                 pos_list.append(pos_temp)

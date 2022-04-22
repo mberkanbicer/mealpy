@@ -43,7 +43,6 @@ class BaseEOA(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -52,7 +51,7 @@ class BaseEOA(Optimizer):
     >>> p_m = 0.01
     >>> n_best = 2
     >>> alpha = 0.98
-    >>> beta = 1.0
+    >>> beta = 0.9
     >>> gamma = 0.9
     >>> model = BaseEOA(problem_dict1, epoch, pop_size, p_c, p_m, n_best, alpha, beta, gamma)
     >>> best_position, best_fitness = model.solve()
@@ -64,7 +63,7 @@ class BaseEOA(Optimizer):
     for global optimisation problems. International journal of bio-inspired computation, 12(1), pp.1-22.
     """
 
-    def __init__(self, problem, epoch=10000, pop_size=100, p_c=0.9, p_m=0.01, n_best=2, alpha=0.98, beta=1, gamma=0.9, **kwargs):
+    def __init__(self, problem, epoch=10000, pop_size=100, p_c=0.9, p_m=0.01, n_best=2, alpha=0.98, beta=0.9, gamma=0.9, **kwargs):
         """
         Args:
             problem (dict): The problem dictionary
@@ -74,22 +73,21 @@ class BaseEOA(Optimizer):
             p_m (float): default = 0.01 initial mutation probability
             n_best (int): default = 2, how many of the best earthworm to keep from one generation to the next
             alpha (float): default = 0.98, similarity factor
-            beta (float): default = 1, the initial proportional factor
+            beta (float): default = 0.9, the initial proportional factor
             gamma (float): default = 0.9, a constant that is similar to cooling factor of a cooling schedule in the simulated annealing.
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.p_c = self.validator.check_float("p_c", p_c, (0, 1.0))
+        self.p_m = self.validator.check_float("p_m", p_m, (0, 1.0))
+        self.n_best = self.validator.check_int("n_best", n_best, [2, int(self.pop_size / 2)])
+        self.alpha = self.validator.check_float("alpha", alpha, (0, 1.0))
+        self.beta = self.validator.check_float("beta", beta, (0, 1.0))
+        self.gamma = self.validator.check_float("gamma", gamma, (0, 1.0))
+
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = False
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.p_c = p_c
-        self.p_m = p_m
-        self.n_best = n_best
-        self.alpha = alpha
-        self.beta = beta
-        self.gamma = gamma
-
         ## Dynamic variable
         self.dyn_beta = beta
 
@@ -121,9 +119,9 @@ class BaseEOA(Optimizer):
                 r1 = np.random.randint(0, self.pop_size)
                 x_child = self.pop[r1][self.ID_POS]
             x_t1 = self.dyn_beta * x_t1 + (1.0 - self.dyn_beta) * x_child
-            pos_new = self.amend_position(x_t1)
+            pos_new = self.amend_position(x_t1, self.problem.lb, self.problem.ub)
             pop.append([pos_new, None])
-        pop = self.update_fitness_population(pop)
+        pop = self.update_target_wrapper_population(pop)
         pop = self.greedy_selection_population(self.pop, pop)
         nfe_epoch += self.pop_size
         self.dyn_beta = self.gamma * self.beta
@@ -135,10 +133,10 @@ class BaseEOA(Optimizer):
         for i in range(self.n_best, self.pop_size):  # Don't allow the elites to be mutated
             cauchy_w = np.where(np.random.uniform(0, 1, self.problem.n_dims) < self.p_m, x_mean, cauchy_w)
             x_t1 = (cauchy_w + self.g_best[self.ID_POS]) / 2
-            pos_new = self.amend_position(x_t1)
+            pos_new = self.amend_position(x_t1, self.problem.lb, self.problem.ub)
             pop[i][self.ID_POS] = pos_new
             nfe_epoch += 1
-        pop = self.update_fitness_population(pop)
+        pop = self.update_target_wrapper_population(pop)
 
         ## Elitism Strategy: Replace the worst with the previous generation's elites.
         pop, local_best = self.get_global_best_solution(pop)
@@ -149,10 +147,9 @@ class BaseEOA(Optimizer):
         new_set = set()
         for idx, obj in enumerate(pop):
             if tuple(obj[self.ID_POS].tolist()) in new_set:
-                pop[idx] = self.create_solution()
+                pop[idx] = self.create_solution(self.problem.lb, self.problem.ub)
                 nfe_epoch += 1
             else:
                 new_set.add(tuple(obj[self.ID_POS].tolist()))
         self.nfe_per_epoch = nfe_epoch
         self.pop = pop
-

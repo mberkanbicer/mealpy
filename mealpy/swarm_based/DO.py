@@ -30,7 +30,6 @@ class BaseDO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -55,11 +54,10 @@ class BaseDO(Optimizer):
         """
 
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = 2 * pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.nfe_per_epoch = 2 * self.pop_size
         self.sort_flag = False
-
-        self.epoch = epoch
-        self.pop_size = pop_size
 
     def dragonfly_levy(self):
         beta = 3 / 2
@@ -162,8 +160,8 @@ class BaseDO(Optimizer):
                 pos_new += temp
 
             # Amend solution
-            self.pop[i][self.ID_POS] = self.amend_position(pos_new)
-            self.pop_delta[i][self.ID_POS] = self.amend_position(pos_delta_new)
+            self.pop[i][self.ID_POS] = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
+            self.pop_delta[i][self.ID_POS] = self.amend_position(pos_delta_new, self.problem.lb, self.problem.ub)
 
-        self.pop = self.update_fitness_population(self.pop)
-        self.pop_delta = self.update_fitness_population(self.pop_delta)
+        self.pop = self.update_target_wrapper_population(self.pop)
+        self.pop_delta = self.update_target_wrapper_population(self.pop_delta)

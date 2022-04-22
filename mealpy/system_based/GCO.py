@@ -34,7 +34,6 @@ class BaseGCO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -56,14 +55,13 @@ class BaseGCO(Optimizer):
             wf (float): weighting factor (f in the paper), default = 1.25 (Same as DE algorithm)
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.cr = self.validator.check_float("cr", cr, (0, 1.0))
+        self.wf = self.validator.check_float("wf", wf, (0, 3.0))
+
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = False
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.cr = cr
-        self.wf = wf
-
         ## Dynamic variables
         self.dyn_list_cell_counter = np.ones(self.pop_size)  # CEll Counter
         self.dyn_list_life_signal = 70 * np.ones(self.pop_size)  # 70% to duplicate, and 30% to die  # LIfe-Signal
@@ -87,9 +85,9 @@ class BaseGCO(Optimizer):
             r1, r2 = np.random.choice(list(set(range(0, self.pop_size)) - {idx}), 2, replace=False)
             pos_new = self.g_best[self.ID_POS] + self.wf * (self.pop[r2][self.ID_POS] - self.pop[r1][self.ID_POS])
             pos_new = np.where(np.random.uniform(0, 1, self.problem.n_dims) < self.cr, pos_new, self.pop[idx][self.ID_POS])
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         for idx in range(0, self.pop_size):
             if self.compare_agent(pop_new[idx], self.pop[idx]):
                 self.dyn_list_cell_counter[idx] += 10
@@ -129,7 +127,6 @@ class OriginalGCO(BaseGCO):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -156,7 +153,7 @@ class OriginalGCO(BaseGCO):
             wf (float): weighting factor (f in the paper), default = 1.25 (Same as DE algorithm)
         """
         super().__init__(problem, epoch, pop_size, cr, wf, **kwargs)
-        self.nfe_per_epoch = pop_size
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = False
 
     def evolve(self, epoch):
@@ -177,9 +174,9 @@ class OriginalGCO(BaseGCO):
             r1, r2, r3 = np.random.choice(list(set(range(0, self.pop_size)) - {idx}), 3, replace=False)
             pos_new = self.pop[r1][self.ID_POS] + self.wf * (self.pop[r2][self.ID_POS] - self.pop[r3][self.ID_POS])
             pos_new = np.where(np.random.uniform(0, 1, self.problem.n_dims) < self.cr, pos_new, self.pop[idx][self.ID_POS])
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         for idx in range(0, self.pop_size):
             if self.compare_agent(pop_new[idx], self.pop[idx]):
                 self.dyn_list_cell_counter[idx] += 10

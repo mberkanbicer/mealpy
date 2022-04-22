@@ -35,7 +35,6 @@ class BaseEFO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -61,16 +60,15 @@ class BaseEFO(Optimizer):
             n_field (float): default = 0.45    portion of population, negative field
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
-        self.sort_flag = True
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.r_rate = r_rate
-        self.ps_rate = ps_rate
-        self.p_field = p_field
-        self.n_field = n_field
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.r_rate = self.validator.check_float("r_rate", r_rate, (0, 1.0))
+        self.ps_rate = self.validator.check_float("ps_rate", ps_rate, (0, 1.0))
+        self.p_field = self.validator.check_float("p_field", p_field, (0, 1.0))
+        self.n_field = self.validator.check_float("n_field", n_field, (0, 1.0))
         self.phi = (1 + np.sqrt(5)) / 2  # golden ratio
+        self.nfe_per_epoch = self.pop_size
+        self.sort_flag = True
 
     def evolve(self, epoch):
         """
@@ -93,9 +91,7 @@ class BaseEFO(Optimizer):
                 pos_new = self.pop[r_idx1][self.ID_POS] + self.phi * np.random.uniform() * (self.g_best[self.ID_POS] - self.pop[r_idx3][self.ID_POS]) \
                           + np.random.uniform() * (self.g_best[self.ID_POS] - self.pop[r_idx2][self.ID_POS])
             else:
-                # new = top
-                # pos_new = self.levy_flight(epoch + 1, self.pop[idx][self.ID_POS], self.g_best[self.ID_POS])
-                pos_new = np.random.uniform(self.problem.lb, self.problem.ub)
+                pos_new = self.generate_position(self.problem.lb, self.problem.ub)
 
             # replacement of one electromagnet of generated particle with a random number
             # (only for some generated particles) to bring diversity to the population
@@ -104,9 +100,9 @@ class BaseEFO(Optimizer):
                 pos_new[np.random.randint(0, self.problem.n_dims)] = np.random.uniform(self.problem.lb[RI], self.problem.ub[RI])
 
             # checking whether the generated number is inside boundary or not
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         self.pop = self.greedy_selection_population(self.pop, pop_new)
 
 
@@ -136,7 +132,6 @@ class OriginalEFO(BaseEFO):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -168,21 +163,23 @@ class OriginalEFO(BaseEFO):
             n_field (float): default = 0.45    portion of population, negative field
         """
         super().__init__(problem, epoch, pop_size, r_rate, ps_rate, p_field, n_field, **kwargs)
-        self.nfe_per_epoch = pop_size
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = True
 
-    def amend_position(self, position=None):
+    def amend_position(self, position=None, lb=None, ub=None):
         """
-        If solution out of bound at dimension x, then it will re-arrange to random location in the range of domain
+        Depend on what kind of problem are we trying to solve, there will be an different amend_position
+        function to rebound the position of agent into the valid range.
 
         Args:
             position: vector position (location) of the solution.
+            lb: list of lower bound values
+            ub: list of upper bound values
 
         Returns:
-            Amended position
+            Amended position (make the position is in bound)
         """
-        return np.where(np.logical_and(self.problem.lb <= position, position <= self.problem.ub),
-                        position, np.random.uniform(self.problem.lb, self.problem.ub))
+        return np.where(np.logical_and(lb <= position, position <= ub), position, np.random.uniform(lb, ub))
 
     def initialization(self):
         pop = self.create_population(self.pop_size)
@@ -232,8 +229,8 @@ class OriginalEFO(BaseEFO):
                 self.RI = 0
 
         # checking whether the generated number is inside boundary or not
-        pos_new = self.amend_position(x_new)
-        fit_new = self.get_fitness_position(pos_new)
+        pos_new = self.amend_position(x_new, self.problem.lb, self.problem.ub)
+        target = self.get_target_wrapper(pos_new)
         # Updating the population if the fitness of the generated particle is better than worst fitness in
         #     the population (because the population is sorted by fitness, the last particle is the worst)
-        self.pop[-1] = [pos_new, fit_new]
+        self.pop[-1] = [pos_new, target]

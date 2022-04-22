@@ -35,7 +35,6 @@ class OriginalCGO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -58,11 +57,10 @@ class OriginalCGO(Optimizer):
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = 4*pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.nfe_per_epoch = 4 * self.pop_size
         self.sort_flag = False
-
-        self.epoch = epoch
-        self.pop_size = pop_size
 
     def evolve(self, epoch):
         """
@@ -100,15 +98,15 @@ class OriginalCGO(Optimizer):
             seed4[k_idx] += np.random.uniform(0, 1, k)
 
             # Check if solutions go outside the search space and bring them back
-            seed1 = self.amend_position(seed1)
-            seed2 = self.amend_position(seed2)
-            seed3 = self.amend_position(seed3)
-            seed4 = self.amend_position(seed4)
+            seed1 = self.amend_position(seed1, self.problem.lb, self.problem.ub)
+            seed2 = self.amend_position(seed2, self.problem.lb, self.problem.ub)
+            seed3 = self.amend_position(seed3, self.problem.lb, self.problem.ub)
+            seed4 = self.amend_position(seed4, self.problem.lb, self.problem.ub)
 
-            sol1 = [seed1, self.get_fitness_position(seed1)]
-            sol2 = [seed2, self.get_fitness_position(seed2)]
-            sol3 = [seed3, self.get_fitness_position(seed3)]
-            sol4 = [seed4, self.get_fitness_position(seed4)]
+            sol1 = [seed1, self.get_target_wrapper(seed1)]
+            sol2 = [seed2, self.get_target_wrapper(seed2)]
+            sol3 = [seed3, self.get_target_wrapper(seed3)]
+            sol4 = [seed4, self.get_target_wrapper(seed4)]
 
             ## Lots of grammar errors in this section, so confused to understand which strategy they are using
             _, best_seed = self.get_global_best_solution([sol1, sol2, sol3, sol4])

@@ -30,7 +30,6 @@ class BaseHHO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -53,11 +52,11 @@ class BaseHHO(Optimizer):
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = 1.5 * pop_size
-        self.sort_flag = False
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
 
-        self.epoch = epoch
-        self.pop_size = pop_size
+        self.nfe_per_epoch = 1.5 * self.pop_size
+        self.sort_flag = False
 
     def evolve(self, epoch):
         """
@@ -85,7 +84,7 @@ class BaseHHO(Optimizer):
                     X_m = np.mean([x[self.ID_POS] for x in self.pop])
                     pos_new = (self.g_best[self.ID_POS] - X_m) - np.random.uniform() * \
                               (self.problem.lb + np.random.uniform() * (self.problem.ub - self.problem.lb))
-                pos_new = self.amend_position(pos_new)
+                pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
                 pop_new.append([pos_new, None])
             # -------- Exploitation phase -------------------
             else:
@@ -98,7 +97,7 @@ class BaseHHO(Optimizer):
                         pos_new = delta_X - E * np.abs(J * self.g_best[self.ID_POS] - self.pop[idx][self.ID_POS])
                     else:  # Soft besiege Eq. (4) in paper
                         pos_new = self.g_best[self.ID_POS] - E * np.abs(delta_X)
-                    pos_new = self.amend_position(pos_new)
+                    pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
                     pop_new.append([pos_new, None])
                 else:
                     xichma = np.power((gamma(1 + 1.5) * np.sin(np.pi * 1.5 / 2.0)) /
@@ -109,17 +108,16 @@ class BaseHHO(Optimizer):
                     else:  # Hard besiege Eq. (11) in paper
                         X_m = np.mean([x[self.ID_POS] for x in self.pop])
                         Y = self.g_best[self.ID_POS] - E * np.abs(J * self.g_best[self.ID_POS] - X_m)
-                    pos_Y = self.amend_position(Y)
-                    fit_Y = self.get_fitness_position(pos_Y)
+                    pos_Y = self.amend_position(Y, self.problem.lb, self.problem.ub)
+                    target_Y = self.get_target_wrapper(pos_Y)
                     Z = Y + np.random.uniform(self.problem.lb, self.problem.ub) * LF_D
-                    pos_Z = self.amend_position(Z)
-                    fit_Z = self.get_fitness_position(pos_Z)
-
-                    if self.compare_agent([pos_Y, fit_Y], self.pop[idx]):
-                        pop_new.append([pos_Y, fit_Y])
+                    pos_Z = self.amend_position(Z, self.problem.lb, self.problem.ub)
+                    target_Z = self.get_target_wrapper(pos_Z)
+                    if self.compare_agent([pos_Y, target_Y], self.pop[idx]):
+                        pop_new.append([pos_Y, target_Y])
                         continue
-                    if self.compare_agent([pos_Z, fit_Z], self.pop[idx]):
-                        pop_new.append([pos_Z, fit_Z])
+                    if self.compare_agent([pos_Z, target_Z], self.pop[idx]):
+                        pop_new.append([pos_Z, target_Z])
                         continue
                     pop_new.append(deepcopy(self.pop[idx]))
-        self.pop = self.update_fitness_population(pop_new)
+        self.pop = self.update_target_wrapper_population(pop_new)

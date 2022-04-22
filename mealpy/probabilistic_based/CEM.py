@@ -33,7 +33,6 @@ class BaseCEM(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -60,15 +59,14 @@ class BaseCEM(Optimizer):
             alpha (float): weight factor for means and stdevs (normal distribution)
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
-        self.sort_flag = True
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.alpha = alpha
-        self.n_best = n_best
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.n_best = self.validator.check_int("n_best", n_best, [2, int(self.pop_size/2)])
+        self.alpha = self.validator.check_float("alpha", alpha, (0, 1.0))
         self.means = np.random.uniform(self.problem.lb, self.problem.ub)
         self.stdevs = np.abs(self.problem.ub - self.problem.lb)
+        self.nfe_per_epoch = self.pop_size
+        self.sort_flag = True
 
     def evolve(self, epoch):
         """
@@ -91,6 +89,6 @@ class BaseCEM(Optimizer):
         pop_new = []
         for idx in range(0, self.pop_size):
             pos_new = np.random.normal(self.means, self.stdevs)
-            pop_new.append([self.amend_position(pos_new), None])
-        pop_new = self.update_fitness_population(pop_new)
+            pop_new.append([self.amend_position(pos_new, self.problem.lb, self.problem.ub), None])
+        pop_new = self.update_target_wrapper_population(pop_new)
         self.pop = self.greedy_selection_population(self.pop, pop_new)

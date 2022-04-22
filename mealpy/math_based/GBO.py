@@ -12,14 +12,9 @@ class OriginalGBO(Optimizer):
     """
     The original version of: Gradient-Based Optimizer (GBO)
 
-    Notes
-    ~~~~~
-    + The number of neighbour solutions are equal to user defined
-    + The step size to calculate neighbour is randomized
-
     Hyper-parameters should fine tuned in approximate range to get faster convergen toward the global optimum:
         + pr (float): [0.2, 0.8], Probability Parameter, default = 0.5
-        + beta_minmax (list): Fixed parameter (no name in the paper), default = (0.2, 1.2)
+        + beta_minmax (list, tuple): Fixed parameter (no name in the paper), default = (0.2, 1.2)
 
     Examples
     ~~~~~~~~
@@ -34,7 +29,6 @@ class OriginalGBO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -58,15 +52,15 @@ class OriginalGBO(Optimizer):
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
             pr (float): Probability Parameter, default = 0.5
-            beta_minmax (list): Fixed parameter (no name in the paper), default = (0.2, 1.2)
+            beta_minmax (list, tuple): Fixed parameter (no name in the paper), default = (0.2, 1.2)
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.pr = pr
-        self.beta_minmax = beta_minmax
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.pr = self.validator.check_float("pr", pr, (0, 1.0))
+        self.beta_minmax = self.validator.check_tuple_float("beta (min, max)", beta_minmax, ((0, 0.5), [0.5, 2.0]))
+        self.nfe_per_epoch = self.pop_size
+        self.sort_flag = False
 
     def initialization(self):
         self.pop = self.create_population(self.pop_size)
@@ -124,7 +118,7 @@ class OriginalGBO(Optimizer):
                 u3 = L1 * np.random.rand() + (1 - L1)
 
                 L2 = np.round(1 - np.random.rand())
-                x_rand = np.random.uniform(self.problem.lb, self.problem.ub)
+                x_rand = self.generate_position(self.problem.lb, self.problem.ub)
                 x_p = self.pop[np.random.choice(range(0, self.pop_size))][self.ID_POS]
                 x_m = L2 * x_p + (1 - L2) * x_rand
 
@@ -136,9 +130,9 @@ class OriginalGBO(Optimizer):
                                 u3 * (x2 - x1) + u2 * (self.pop[r1][self.ID_POS] - self.pop[r2][self.ID_POS])) / 2
 
             # Check if solutions go outside the search space and bring them back
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        self.pop = self.update_fitness_population(pop_new)
+        self.pop = self.update_target_wrapper_population(pop_new)
         self.nfe_per_epoch = self.pop_size
         _, best, worst = self.get_special_solutions(self.pop, best=1, worst=1)
         self.g_best, self.g_worst = best[0], worst[0]

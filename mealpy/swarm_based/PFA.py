@@ -29,7 +29,6 @@ class BasePFA(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -52,11 +51,11 @@ class BasePFA(Optimizer):
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
-        self.sort_flag = True
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
 
-        self.epoch = epoch
-        self.pop_size = pop_size
+        self.nfe_per_epoch = self.pop_size
+        self.sort_flag = True
 
     def evolve(self, epoch):
         """
@@ -70,9 +69,9 @@ class BasePFA(Optimizer):
 
         ## Update the position of pathfinder and check the bound
         pos_new = self.pop[0][self.ID_POS] + 2 * np.random.uniform() * (self.g_best[self.ID_POS] - self.pop[0][self.ID_POS]) + A
-        pos_new = self.amend_position(pos_new)
-        fit = self.get_fitness_position(pos_new)
-        pop_new = [[pos_new, fit], ]
+        pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
+        target = self.get_target_wrapper(pos_new)
+        pop_new = [[pos_new, target], ]
 
         ## Update positions of members, check the bound and calculate new fitness
         for idx in range(1, self.pop_size):
@@ -86,7 +85,7 @@ class BasePFA(Optimizer):
             ## Second stabilize the population size
             t1 = beta * np.random.uniform() * (self.g_best[self.ID_POS] - self.pop[idx][self.ID_POS])
             pos_new = (pos_new + t1) / self.pop_size
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         self.pop = self.greedy_selection_population(self.pop, pop_new)

@@ -37,7 +37,6 @@ class BaseICA(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -73,18 +72,17 @@ class BaseICA(Optimizer):
             zeta (float): Colonies Coefficient in Total Objective Value of Empires
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.empire_count = self.validator.check_int("empire_count", empire_count, [2, 2 + int(self.pop_size / 5)])
+        self.assimilation_coeff = self.validator.check_float("assimilation_coeff", assimilation_coeff, [1.0, 3.0])
+        self.revolution_prob = self.validator.check_float("revolution_prob", revolution_prob, (0, 1.0))
+        self.revolution_rate = self.validator.check_float("revolution_rate", revolution_rate, (0, 1.0))
+        self.revolution_step_size = self.validator.check_float("revolution_step_size", revolution_step_size, (0, 1.0))
+        self.zeta = self.validator.check_float("zeta", zeta, (0, 1.0))
+
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = True
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.empire_count = empire_count
-        self.assimilation_coeff = assimilation_coeff
-        self.revolution_prob = revolution_prob
-        self.revolution_rate = revolution_rate
-        self.revolution_step_size = revolution_step_size
-        self.zeta = zeta
-
         self.pop_empires, self.pop_colonies, self.empires = None, None, None
         self.n_revoluted_variables, self.idx_list_variables = None, None
 
@@ -137,25 +135,24 @@ class BaseICA(Optimizer):
             for idx_colony, colony in enumerate(colonies):
                 pos_new = colony[self.ID_POS] + self.assimilation_coeff * \
                           np.random.uniform(0, 1, self.problem.n_dims) * (self.pop_empires[idx][self.ID_POS] - colony[self.ID_POS])
-                pos_new = self.amend_position(pos_new)
+                pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
                 self.empires[idx][idx_colony][self.ID_POS] = pos_new
-            self.empires[idx] = self.update_fitness_population(self.empires[idx])
-            # empires[idx], g_best = self.update_global_best_solution(empires[idx], self.ID_MIN_PROB, g_best)
+            self.empires[idx] = self.update_target_wrapper_population(self.empires[idx])
 
         # Revolution
         for idx, colonies in self.empires.items():
             # Apply revolution to Imperialist
             pos_new = self.revolution_country(self.pop_empires[idx][self.ID_POS], self.idx_list_variables, self.n_revoluted_variables)
-            self.pop_empires[idx][self.ID_POS] = self.amend_position(pos_new)
+            self.pop_empires[idx][self.ID_POS] = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
 
             # Apply revolution to Colonies
             for idx_colony, colony in enumerate(colonies):
                 if np.random.rand() < self.revolution_prob:
                     pos_new = self.revolution_country(colony[self.ID_POS], self.idx_list_variables, self.n_revoluted_variables)
-                    self.empires[idx][idx_colony][self.ID_POS] = self.amend_position(pos_new)
-            self.empires[idx] = self.update_fitness_population(self.empires[idx])
-        self.pop_empires = self.update_fitness_population(self.pop_empires)
-        _, g_best = self.update_global_best_solution(self.pop_empires)
+                    self.empires[idx][idx_colony][self.ID_POS] = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
+            self.empires[idx] = self.update_target_wrapper_population(self.empires[idx])
+        self.pop_empires = self.update_target_wrapper_population(self.pop_empires)
+        _, g_best = self.update_global_best_solution(self.pop_empires, save=False)
 
         # Intra-Empire Competition
         for idx, colonies in self.empires.items():

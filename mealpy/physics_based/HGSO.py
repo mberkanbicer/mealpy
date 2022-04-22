@@ -32,7 +32,6 @@ class BaseHGSO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -57,14 +56,12 @@ class BaseHGSO(Optimizer):
             n_clusters (int): number of clusters, default = 2
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
-        self.sort_flag = False
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.n_clusters = n_clusters
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.n_clusters = self.validator.check_int("n_clusters", n_clusters, [2, int(self.pop_size/5)])
         self.n_elements = int(self.pop_size / self.n_clusters)
-
+        self.nfe_per_epoch = self.pop_size
+        self.sort_flag = False
         self.T0 = 298.15
         self.K = 1.0
         self.beta = 1.0
@@ -77,7 +74,6 @@ class BaseHGSO(Optimizer):
         self.H_j = self.l1 * np.random.uniform()
         self.P_ij = self.l2 * np.random.uniform()
         self.C_j = self.l3 * np.random.uniform()
-
         self.pop_group, self.p_best = None, None
 
     def _create_group(self, pop):
@@ -128,10 +124,10 @@ class BaseHGSO(Optimizer):
                 X_ij = self.pop_group[i][j][self.ID_POS] + F * np.random.uniform() * gama * \
                        (self.p_best[i][self.ID_POS] - self.pop_group[i][j][self.ID_POS]) + \
                        F * np.random.uniform() * self.alpha * (S_ij * self.g_best[self.ID_POS] - self.pop_group[i][j][self.ID_POS])
-                pos_new = self.amend_position(X_ij)
+                pos_new = self.amend_position(X_ij, self.problem.lb, self.problem.ub)
                 pop_new.append([pos_new, None])
                 nfe_epoch += 1
-            self.pop_group[i] = self.update_fitness_population(pop_new)
+            self.pop_group[i] = self.update_target_wrapper_population(pop_new)
         self.pop = self._flatten_group(self.pop_group)
 
         ## Update Henry's coefficient using Eq.8
@@ -148,11 +144,11 @@ class BaseHGSO(Optimizer):
         for item in range(N_w):
             id = sorted_id_pos[item]
             X_new = np.random.uniform(self.problem.lb, self.problem.ub)
-            pos_new = self.amend_position(X_new)
+            pos_new = self.amend_position(X_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
             pop_idx.append(id)
             nfe_epoch += 1
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         for idx, id_selected in enumerate(pop_idx):
             self.pop[id_selected] = deepcopy(pop_new[idx])
         self.pop_group = self._create_group(self.pop)

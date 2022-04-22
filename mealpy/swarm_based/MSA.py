@@ -41,7 +41,6 @@ class BaseMSA(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -70,14 +69,14 @@ class BaseMSA(Optimizer):
             max_step_size (float): Max step size used in Levy-flight technique, default=1.0
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
-        self.sort_flag = True
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.n_best = self.validator.check_int("n_best", n_best, [2, int(self.pop_size/2)])
+        self.partition = self.validator.check_float("partition", partition, (0, 1.0))
+        self.max_step_size = self.validator.check_float("max_step_size", max_step_size, (0, 5.0))
 
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.n_best = n_best
-        self.partition = partition
-        self.max_step_size = max_step_size
+        self.nfe_per_epoch = self.pop_size
+        self.sort_flag = True
         # np1 in paper
         self.n_moth1 = int(np.ceil(self.partition * self.pop_size))
         # np2 in paper, we actually don't need this variable
@@ -117,9 +116,9 @@ class BaseMSA(Optimizer):
                 temp_case2 = self.pop[idx][self.ID_POS] + np.random.normal() * \
                              (1.0 / self.golden_ratio) * (self.g_best[self.ID_POS] - self.pop[idx][self.ID_POS])
                 pos_new = np.where(np.random.uniform(self.problem.n_dims) < 0.5, temp_case2, temp_case1)
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         pop_new = self.greedy_selection_population(self.pop, pop_new)
 
         self.pop, _ = self.get_global_best_solution(pop_new)

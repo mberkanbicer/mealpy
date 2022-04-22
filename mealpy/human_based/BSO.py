@@ -38,7 +38,6 @@ class ImprovedBSO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -67,18 +66,17 @@ class ImprovedBSO(Optimizer):
             p4 (float): Need more weights on the centers instead of the random position
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.m_clusters = self.validator.check_int("m_clusters", m_clusters, [2, int(self.pop_size/5)])
+        self.p1 = self.validator.check_float("p1", p1, (0, 1.0))
+        self.p2 = self.validator.check_float("p2", p2, (0, 1.0))
+        self.p3 = self.validator.check_float("p3", p3, (0, 1.0))
+        self.p4 = self.validator.check_float("p4", p4, (0, 1.0))
+
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = False
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.m_clusters = m_clusters
-        self.p1 = p1
-        self.p2 = p2
-        self.p3 = p3
-        self.p4 = p4
         self.m_solution = int(self.pop_size / self.m_clusters)
-
         self.pop_group, self.centers = None, None
 
     def _find_cluster(self, pop_group):
@@ -111,7 +109,7 @@ class ImprovedBSO(Optimizer):
 
         if np.random.uniform() < self.p1:  # p_5a
             idx = np.random.randint(0, self.m_clusters)
-            solution_new = self.create_solution()
+            solution_new = self.create_solution(self.problem.lb, self.problem.ub)
             self.centers[idx] = solution_new
 
         pop_group = deepcopy(self.pop_group)
@@ -134,9 +132,9 @@ class ImprovedBSO(Optimizer):
                     rand_id2 = np.random.randint(0, self.m_solution)
                     pos_new = 0.5 * (self.pop_group[id1][rand_id1][self.ID_POS] + self.pop_group[id2][rand_id2][self.ID_POS]) + \
                               epxilon * np.random.uniform()
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_group[cluster_id][location_id] = [pos_new, None]
-        pop_group = [self.update_fitness_population(group) for group in pop_group]
+        pop_group = [self.update_target_wrapper_population(group) for group in pop_group]
         for idx in range(0, self.m_clusters):
             self.pop_group[idx] = self.greedy_selection_population(self.pop_group[idx], pop_group[idx])
 
@@ -161,8 +159,6 @@ class BaseBSO(ImprovedBSO):
         + p3 (float): [0.2, 0.8], probability
         + p4 (float): [0.2, 0.8], probability
         + slope (int): [10, 15, 20, 25], changing logsig() function's slope (k: in the paper)
-        + miu (float): [0], mean of normal distribution (gaussian)
-        + xichma (float): [1], standard deviation of normal distribution (gaussian)
 
     Examples
     ~~~~~~~~
@@ -177,7 +173,6 @@ class BaseBSO(ImprovedBSO):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -188,9 +183,7 @@ class BaseBSO(ImprovedBSO):
     >>> p3 = 0.4
     >>> p4 = 0.5
     >>> slope = 20
-    >>> miu = 0
-    >>> xichma = 1
-    >>> model = BaseBSO(problem_dict1, epoch, pop_size, m_clusters, p1, p2, p3, p4, slope, miu, xichma)
+    >>> model = BaseBSO(problem_dict1, epoch, pop_size, m_clusters, p1, p2, p3, p4, slope)
     >>> best_position, best_fitness = model.solve()
     >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
 
@@ -201,7 +194,7 @@ class BaseBSO(ImprovedBSO):
     """
 
     def __init__(self, problem, epoch=10000, pop_size=100,
-                 m_clusters=5, p1=0.2, p2=0.8, p3=0.4, p4=0.5, slope=20, miu=0, xichma=1, **kwargs):
+                 m_clusters=5, p1=0.2, p2=0.8, p3=0.4, p4=0.5, slope=20, **kwargs):
         """
         Args:
             problem (dict): The problem dictionary
@@ -213,26 +206,21 @@ class BaseBSO(ImprovedBSO):
             p3 (float): probability
             p4 (float): probability
             slope (int): changing logsig() function's slope (k: in the paper)
-            miu (float): mean of normal distribution (gaussian)
-            xichma (float): standard deviation of normal distribution (gaussian)
         """
         super().__init__(problem, epoch, pop_size, m_clusters, p1, p2, p3, p4, **kwargs)
-        self.slope = slope
-        self.miu = miu
-        self.xichma = xichma
+        self.slope = self.validator.check_int("slope", slope, [10, 50])
 
-    def amend_position(self, position=None):
+    def amend_position(self, position=None, lb=None, ub=None):
         """
-        If solution out of bound at dimension x, then it will re-arrange to random location in the range of domain
-
         Args:
             position: vector position (location) of the solution.
+            lb: list of lower bound values
+            ub: list of upper bound values
 
         Returns:
-            Amended position
+            Amended position (make the position is in bound)
         """
-        return np.where(np.logical_and(self.problem.lb <= position, position <= self.problem.ub),
-                        position, np.random.uniform(self.problem.lb, self.problem.ub))
+        return np.where(np.logical_and(lb <= position, position <= ub), position, np.random.uniform(lb, ub))
 
     def evolve(self, epoch):
         """
@@ -246,7 +234,7 @@ class BaseBSO(ImprovedBSO):
 
         if np.random.rand() < self.p1:  # p_5a
             idx = np.random.randint(0, self.m_clusters)
-            solution_new = self.create_solution()
+            solution_new = self.create_solution(self.problem.lb, self.problem.ub)
             self.centers[idx] = solution_new
 
         pop_group = deepcopy(self.pop_group)
@@ -258,7 +246,7 @@ class BaseBSO(ImprovedBSO):
                 if np.random.uniform() < self.p3:  # p_6i
                     cluster_id = np.random.randint(0, self.m_clusters)
                 if np.random.uniform() < self.p3:
-                    pos_new = self.centers[cluster_id][self.ID_POS] + epxilon * np.random.normal(self.miu, self.xichma)
+                    pos_new = self.centers[cluster_id][self.ID_POS] + epxilon * np.random.normal(0, 1)
                 else:
                     rand_idx = np.random.randint(0, self.m_solution)
                     pos_new = self.pop_group[cluster_id][rand_idx][self.ID_POS] + np.random.uniform()
@@ -266,15 +254,15 @@ class BaseBSO(ImprovedBSO):
                 id1, id2 = np.random.choice(range(0, self.m_clusters), 2, replace=False)
                 if np.random.uniform() < self.p4:
                     pos_new = 0.5 * (self.centers[id1][self.ID_POS] + self.centers[id2][self.ID_POS]) + \
-                              epxilon * np.random.normal(self.miu, self.xichma)
+                              epxilon * np.random.normal(0, 1)
                 else:
                     rand_id1 = np.random.randint(0, self.m_solution)
                     rand_id2 = np.random.randint(0, self.m_solution)
                     pos_new = 0.5 * (self.pop_group[id1][rand_id1][self.ID_POS] + self.pop_group[id2][rand_id2][self.ID_POS]) + \
-                              epxilon * np.random.normal(self.miu, self.xichma)
-            pos_new = self.amend_position(pos_new)
+                              epxilon * np.random.normal(0, 1)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_group[cluster_id][location_id] = [pos_new, None]
-        pop_group = [self.update_fitness_population(group) for group in pop_group]
+        pop_group = [self.update_target_wrapper_population(group) for group in pop_group]
         for idx in range(0, self.m_clusters):
             self.pop_group[idx] = self.greedy_selection_population(self.pop_group[idx], pop_group[idx])
 
@@ -283,4 +271,3 @@ class BaseBSO(ImprovedBSO):
         self.pop = []
         for idx in range(0, self.m_clusters):
             self.pop += self.pop_group[idx]
-

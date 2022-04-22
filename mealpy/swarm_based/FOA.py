@@ -17,8 +17,7 @@ class OriginalFOA(Optimizer):
 
     Notes
     ~~~~~
-        + This optimization can't apply to complicated objective function in this library.
-        + So I changed the implementation Original FOA in BaseFOA version
+        + This optimization can't apply to complicated objective function due to the norm distance
         + This algorithm is the weakest algorithm in MHAs, that's why so many researchers produce papers based on this algorithm (Easy to improve, and easy to implement)
 
     Examples
@@ -34,7 +33,6 @@ class OriginalFOA(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -57,17 +55,16 @@ class OriginalFOA(Optimizer):
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = False
-
-        self.epoch = epoch
-        self.pop_size = pop_size
 
     def norm_consecutive_adjacent(self, position=None):
         return np.array([np.linalg.norm([position[x], position[x + 1]]) for x in range(0, self.problem.n_dims - 1)] + \
                         [np.linalg.norm([position[-1], position[0]])])
 
-    def create_solution(self):
+    def create_solution(self, lb=None, ub=None):
         """
         To get the position, fitness wrapper, target and obj list
             + A[self.ID_POS]                  --> Return: position
@@ -76,13 +73,13 @@ class OriginalFOA(Optimizer):
             + A[self.ID_TAR][self.ID_OBJ]     --> Return: [obj1, obj2, ...]
 
         Returns:
-            list: wrapper of solution with format [position, [target, [obj1, obj2, ...]]]
+            list: a solution with format [position, target]
         """
         position = np.random.uniform(self.problem.lb, self.problem.ub)
         s = self.norm_consecutive_adjacent(position)
-        pos = self.amend_position(s)
-        fit = self.get_fitness_position(pos)
-        return [position, fit]
+        pos = self.amend_position(s, self.problem.lb, self.problem.ub)
+        target = self.get_target_wrapper(pos)
+        return [position, target]
 
     def evolve(self, epoch):
         """
@@ -95,9 +92,9 @@ class OriginalFOA(Optimizer):
         for idx in range(0, self.pop_size):
             pos_new = self.pop[idx][self.ID_POS] + np.random.normal(self.problem.lb, self.problem.ub)
             pos_new = self.norm_consecutive_adjacent(pos_new)
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        self.pop = self.update_fitness_population(pop_new)
+        self.pop = self.update_target_wrapper_population(pop_new)
 
 
 class BaseFOA(OriginalFOA):
@@ -108,6 +105,7 @@ class BaseFOA(OriginalFOA):
     ~~~~~
     + The fitness function (small function) is changed by taking the distance each 2 adjacent dimensions
     + Update the position if only new generated solution is better
+    + The updated position is created by norm distance * gaussian random number
 
     Examples
     ~~~~~~~~
@@ -122,7 +120,6 @@ class BaseFOA(OriginalFOA):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -150,14 +147,11 @@ class BaseFOA(OriginalFOA):
         """
         pop_new = []
         for idx in range(0, self.pop_size):
-            if np.random.rand() < 0.5:
-                pos_new = self.pop[idx][self.ID_POS] + np.random.normal(0, 1, self.problem.n_dims)
-            else:
-                pos_new = self.g_best[self.ID_POS] + np.random.normal(0, 1, self.problem.n_dims)
-            pos_new = self.norm_consecutive_adjacent(pos_new)
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.pop[idx][self.ID_POS] + np.random.normal(self.problem.lb, self.problem.ub)
+            pos_new = np.random.normal() * self.norm_consecutive_adjacent(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         self.pop = self.greedy_selection_population(self.pop, pop_new)
 
 
@@ -181,7 +175,6 @@ class WhaleFOA(OriginalFOA):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -235,6 +228,6 @@ class WhaleFOA(OriginalFOA):
                 D1 = np.abs(self.g_best[self.ID_POS] - self.pop[idx][self.ID_POS])
                 pos_new = D1 * np.exp(b * l) * np.cos(2 * np.pi * l) + self.g_best[self.ID_POS]
             smell = self.norm_consecutive_adjacent(pos_new)
-            pos_new = self.amend_position(smell)
+            pos_new = self.amend_position(smell, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        self.pop = self.update_fitness_population(pop_new)
+        self.pop = self.update_target_wrapper_population(pop_new)

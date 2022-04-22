@@ -29,7 +29,6 @@ class BaseGWO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -51,11 +50,11 @@ class BaseGWO(Optimizer):
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
-        self.sort_flag = False
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
 
-        self.epoch = epoch
-        self.pop_size = pop_size
+        self.nfe_per_epoch = self.pop_size
+        self.sort_flag = False
 
     def evolve(self, epoch):
         """
@@ -76,9 +75,9 @@ class BaseGWO(Optimizer):
             X2 = list_best[1][self.ID_POS] - A2 * np.abs(C2 * list_best[1][self.ID_POS] - self.pop[idx][self.ID_POS])
             X3 = list_best[2][self.ID_POS] - A3 * np.abs(C3 * list_best[2][self.ID_POS] - self.pop[idx][self.ID_POS])
             pos_new = (X1 + X2 + X3) / 3.0
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         self.pop = self.greedy_selection_population(self.pop, pop_new)
 
 
@@ -103,7 +102,6 @@ class RW_GWO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -125,11 +123,11 @@ class RW_GWO(Optimizer):
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size + 3
-        self.sort_flag = False
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
 
-        self.epoch = epoch
-        self.pop_size = pop_size
+        self.nfe_per_epoch = self.pop_size + 3
+        self.sort_flag = False
 
     def evolve(self, epoch):
         """
@@ -149,9 +147,9 @@ class RW_GWO(Optimizer):
         leaders_new = []
         for i in range(0, len(leaders)):
             pos_new = leaders[i][self.ID_POS] + a * np.random.standard_cauchy(self.problem.n_dims)
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             leaders_new.append([pos_new, None])
-        leaders_new = self.update_fitness_population(leaders_new)
+        leaders_new = self.update_target_wrapper_population(leaders_new)
         leaders = self.greedy_selection_population(leaders, leaders_new)
 
         ## Update other wolfs
@@ -165,8 +163,8 @@ class RW_GWO(Optimizer):
             X2 = leaders[1][self.ID_POS] - miu2 * np.abs(c2 * self.g_best[self.ID_POS] - self.pop[idx][self.ID_POS])
             X3 = leaders[2][self.ID_POS] - miu3 * np.abs(c3 * self.g_best[self.ID_POS] - self.pop[idx][self.ID_POS])
             pos_new = (X1 + X2 + X3) / 3.0
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         pop_new = self.greedy_selection_population(self.pop, pop_new)
         self.pop = self.get_sorted_strim_population(pop_new + leaders, self.pop_size)

@@ -29,7 +29,6 @@ class OriginalAO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -52,13 +51,12 @@ class OriginalAO(Optimizer):
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
-        self.sort_flag = False
-
-        self.epoch = epoch
-        self.pop_size = pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
         self.alpha = 0.1
         self.delta = 0.1
+        self.nfe_per_epoch = self.pop_size
+        self.sort_flag = False
 
     def get_simple_levy_step(self):
         beta = 1.5
@@ -105,9 +103,9 @@ class OriginalAO(Optimizer):
                     pos_new = self.alpha * (self.g_best[self.ID_POS] - x_mean) - np.random.rand() * \
                               (np.random.rand() * (self.problem.ub - self.problem.lb) + self.problem.lb) * self.delta  # Eq. 13
                 else:
-                    pos_new = QF * self.g_best[self.ID_POS] - (g2 * self.pop[idx][self.ID_POS] *
-                                                               np.random.rand()) - g2 * self.get_simple_levy_step() + np.random.rand() * g1  # Eq. 14
-            pos_new = self.amend_position(pos_new)
+                    pos_new = QF * self.g_best[self.ID_POS] - (g2 * self.pop[idx][self.ID_POS] * np.random.rand()) - \
+                              g2 * self.get_simple_levy_step() + np.random.rand() * g1  # Eq. 14
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         self.pop = self.greedy_selection_population(self.pop, pop_new)

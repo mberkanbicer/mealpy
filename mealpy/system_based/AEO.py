@@ -30,7 +30,6 @@ class OriginalAEO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -54,11 +53,10 @@ class OriginalAEO(Optimizer):
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = 2 * pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.nfe_per_epoch = 2 * self.pop_size
         self.sort_flag = True
-
-        self.epoch = epoch
-        self.pop_size = pop_size
 
     def evolve(self, epoch):
         """
@@ -71,9 +69,9 @@ class OriginalAEO(Optimizer):
         # Eq. 2, 3, 1
         a = (1.0 - epoch / self.epoch) * np.random.uniform()
         x1 = (1 - a) * self.pop[-1][self.ID_POS] + a * np.random.uniform(self.problem.lb, self.problem.ub)
-        pos_new = self.amend_position(x1)
-        fit_new = self.get_fitness_position(pos_new)
-        self.pop[-1] = [pos_new, fit_new]
+        pos_new = self.amend_position(x1, self.problem.lb, self.problem.ub)
+        target = self.get_target_wrapper(pos_new)
+        self.pop[-1] = [pos_new, target]
 
         ## Consumption - Update the whole population left
         pop_new = []
@@ -100,9 +98,9 @@ class OriginalAEO(Optimizer):
                 r2 = np.random.uniform()
                 x_t1 = self.pop[idx][self.ID_POS] + c * (r2 * (self.pop[idx][self.ID_POS] - self.pop[0][self.ID_POS])
                                                          + (1 - r2) * (self.pop[idx][self.ID_POS] - self.pop[j][self.ID_POS]))
-            pos_new = self.amend_position(x_t1)
+            pos_new = self.amend_position(x_t1, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         pop_new.append(deepcopy(self.pop[-1]))
         pop_new = self.greedy_selection_population(self.pop, pop_new)
 
@@ -118,9 +116,9 @@ class OriginalAEO(Optimizer):
             e = r3 * np.random.randint(1, 3) - 1
             h = 2 * r3 - 1
             x_t1 = best[self.ID_POS] + d * (e * best[self.ID_POS] - h * pop_new[idx][self.ID_POS])
-            pos_new = self.amend_position(x_t1)
+            pos_new = self.amend_position(x_t1, self.problem.lb, self.problem.ub)
             pop_child.append([pos_new, None])
-        pop_child = self.update_fitness_population(pop_child)
+        pop_child = self.update_target_wrapper_population(pop_child)
         self.pop = self.greedy_selection_population(pop_new, pop_child)
 
 
@@ -144,7 +142,6 @@ class IAEO(OriginalAEO):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -180,9 +177,9 @@ class IAEO(OriginalAEO):
         # Eq. 2, 3, 1
         a = (1.0 - epoch / self.epoch) * np.random.uniform()
         x1 = (1 - a) * self.pop[-1][self.ID_POS] + a * np.random.uniform(self.problem.lb, self.problem.ub)
-        pos_new = self.amend_position(x1)
-        fit_new = self.get_fitness_position(pos_new)
-        self.pop[-1] = [pos_new, fit_new]
+        pos_new = self.amend_position(x1, self.problem.lb, self.problem.ub)
+        target = self.get_target_wrapper(pos_new)
+        self.pop[-1] = [pos_new, target]
 
         ## Consumption - Update the whole population left
         pop_new = []
@@ -209,9 +206,9 @@ class IAEO(OriginalAEO):
                 r2 = np.random.uniform()
                 x_t1 = self.pop[idx][self.ID_POS] + c * (r2 * (self.pop[idx][self.ID_POS] - self.pop[0][self.ID_POS])
                                                          + (1 - r2) * (self.pop[idx][self.ID_POS] - self.pop[j][self.ID_POS]))
-            pos_new = self.amend_position(x_t1)
+            pos_new = self.amend_position(x_t1, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         pop_new.append(deepcopy(self.pop[-1]))
         pop_new = self.greedy_selection_population(self.pop, pop_new)
 
@@ -237,9 +234,9 @@ class IAEO(OriginalAEO):
                     x_new = beta * pop_new[idx][self.ID_POS] + (1 - beta) * x_r
             else:
                 best[self.ID_POS] = best[self.ID_POS] + np.random.normal() * best[self.ID_POS]
-            pos_new = self.amend_position(x_new)
+            pos_new = self.amend_position(x_new, self.problem.lb, self.problem.ub)
             pop_child.append([pos_new, None])
-        pop_child = self.update_fitness_population(pop_child)
+        pop_child = self.update_target_wrapper_population(pop_child)
         self.pop = self.greedy_selection_population(pop_new, pop_child)
 
 
@@ -263,7 +260,6 @@ class EnhancedAEO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -286,11 +282,10 @@ class EnhancedAEO(Optimizer):
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = 2 * pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.nfe_per_epoch = 2 * self.pop_size
         self.sort_flag = True
-
-        self.epoch = epoch
-        self.pop_size = pop_size
 
     def evolve(self, epoch):
         """
@@ -303,9 +298,9 @@ class EnhancedAEO(Optimizer):
         # Eq. 13
         a = 2 * (1 - (epoch + 1) / self.epoch)
         x1 = (1 - a) * self.pop[-1][self.ID_POS] + a * np.random.uniform(self.problem.lb, self.problem.ub)
-        pos_new = self.amend_position(x1)
-        fit_new = self.get_fitness_position(pos_new)
-        self.pop[-1] = [pos_new, fit_new]
+        pos_new = self.amend_position(x1, self.problem.lb, self.problem.ub)
+        target = self.get_target_wrapper(pos_new)
+        self.pop[-1] = [pos_new, target]
 
         ## Consumption - Update the whole population left
         pop_new = []
@@ -344,9 +339,9 @@ class EnhancedAEO(Optimizer):
                 else:
                     x_t1 = self.pop[idx][self.ID_POS] + np.cos(r5) * c * (r5 * (self.pop[idx][self.ID_POS] - self.pop[0][self.ID_POS]) +
                                                                           (1 - r5) * (self.pop[idx][self.ID_POS] - self.pop[j][self.ID_POS]))
-            pos_new = self.amend_position(x_t1)
+            pos_new = self.amend_position(x_t1, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         pop_new.append(deepcopy(self.pop[-1]))
         pop_new = self.greedy_selection_population(self.pop, pop_new)
 
@@ -374,9 +369,9 @@ class EnhancedAEO(Optimizer):
             else:
                 x_new = best[self.ID_POS] + d * (e * best[self.ID_POS] - h * pop_new[idx][self.ID_POS])
                 # x_new = best[self.ID_POS] + np.random.normal() * best[self.ID_POS]
-            pos_new = self.amend_position(x_new)
+            pos_new = self.amend_position(x_new, self.problem.lb, self.problem.ub)
             pop_child.append([pos_new, None])
-        pop_child = self.update_fitness_population(pop_child)
+        pop_child = self.update_target_wrapper_population(pop_child)
         self.pop = self.greedy_selection_population(pop_new, pop_child)
 
 
@@ -400,7 +395,6 @@ class ModifiedAEO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -424,11 +418,10 @@ class ModifiedAEO(Optimizer):
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = 2 * pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.nfe_per_epoch = 2 * self.pop_size
         self.sort_flag = True
-
-        self.epoch = epoch
-        self.pop_size = pop_size
 
     def evolve(self, epoch):
         """
@@ -442,9 +435,9 @@ class ModifiedAEO(Optimizer):
         H = 2 * (1 - (epoch + 1) / self.epoch)
         a = (1 - (epoch + 1) / self.epoch) * np.random.random()
         x1 = (1 - a) * self.pop[-1][self.ID_POS] + a * np.random.uniform(self.problem.lb, self.problem.ub)
-        pos_new = self.amend_position(x1)
-        fit_new = self.get_fitness_position(pos_new)
-        self.pop[-1] = [pos_new, fit_new]
+        pos_new = self.amend_position(x1, self.problem.lb, self.problem.ub)
+        target = self.get_target_wrapper(pos_new)
+        self.pop[-1] = [pos_new, target]
 
         ## Consumption - Update the whole population left
         pop_new = []
@@ -469,9 +462,9 @@ class ModifiedAEO(Optimizer):
                 r5 = np.random.random()
                 pos_new = self.pop[idx][self.ID_POS] + H * c * (r5 * (self.pop[idx][self.ID_POS] - self.pop[0][self.ID_POS]) +
                                                                 (1 - r5) * (self.pop[idx][self.ID_POS] - self.pop[j][self.ID_POS]))
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         pop_new.append(deepcopy(self.pop[-1]))
         pop_new = self.greedy_selection_population(self.pop, pop_new)
 
@@ -499,9 +492,9 @@ class ModifiedAEO(Optimizer):
             else:
                 x_new = best[self.ID_POS] + d * (e * best[self.ID_POS] - h * pop_new[idx][self.ID_POS])
                 # x_new = best[self.ID_POS] + np.random.normal() * best[self.ID_POS]
-            pos_new = self.amend_position(x_new)
+            pos_new = self.amend_position(x_new, self.problem.lb, self.problem.ub)
             pop_child.append([pos_new, None])
-        pop_child = self.update_fitness_population(pop_child)
+        pop_child = self.update_target_wrapper_population(pop_child)
         self.pop = self.greedy_selection_population(pop_new, pop_child)
 
 
@@ -530,7 +523,6 @@ class AdaptiveAEO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -552,11 +544,10 @@ class AdaptiveAEO(Optimizer):
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = 2 * pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.nfe_per_epoch = 2 * self.pop_size
         self.sort_flag = True
-
-        self.epoch = epoch
-        self.pop_size = pop_size
 
     def evolve(self, epoch):
         """
@@ -570,9 +561,9 @@ class AdaptiveAEO(Optimizer):
         wf = 2 * (1 - (epoch + 1) / self.epoch)  # Weight factor
         a = (1.0 - epoch / self.epoch) * np.random.random()
         x1 = (1 - a) * self.pop[-1][self.ID_POS] + a * np.random.uniform(self.problem.lb, self.problem.ub)
-        pos_new = self.amend_position(x1)
-        fit_new = self.get_fitness_position(pos_new)
-        self.pop[-1] = [pos_new, fit_new]
+        pos_new = self.amend_position(x1, self.problem.lb, self.problem.ub)
+        target = self.get_target_wrapper(pos_new)
+        self.pop[-1] = [pos_new, target]
 
         ## Consumption - Update the whole population left
         pop_new = []
@@ -600,9 +591,9 @@ class AdaptiveAEO(Optimizer):
             else:
                 pos_new = self.pop[idx][self.ID_POS] + self.get_levy_flight_step(1., 0.0001, case=-1) * \
                           (1.0 / np.sqrt(epoch + 1)) * np.sign(np.random.random() - 0.5) * (self.pop[idx][self.ID_POS] - self.g_best[self.ID_POS])
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         pop_new.append(deepcopy(self.pop[-1]))
         pop_new = self.greedy_selection_population(self.pop, pop_new)
 
@@ -618,7 +609,7 @@ class AdaptiveAEO(Optimizer):
             else:
                 pos_new = best[self.ID_POS] + self.get_levy_flight_step(0.75, 0.001, case=-1) * \
                           1.0 / np.sqrt(epoch + 1) * np.sign(np.random.random() - 0.5) * (best[self.ID_POS] - pop_new[idx][self.ID_POS])
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_child.append([pos_new, None])
-        pop_child = self.update_fitness_population(pop_child)
+        pop_child = self.update_target_wrapper_population(pop_child)
         self.pop = self.greedy_selection_population(pop_new, pop_child)

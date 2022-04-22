@@ -30,7 +30,6 @@ class BaseQSA(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -48,11 +47,10 @@ class BaseQSA(Optimizer):
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = 3 * pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.nfe_per_epoch = 3 * self.pop_size
         self.sort_flag = True
-
-        self.epoch = epoch
-        self.pop_size = pop_size
 
     def _calculate_queue_length__(self, t1, t2, t3):
         """
@@ -97,18 +95,18 @@ class BaseQSA(Optimizer):
             F2 = beta * alpha * (E * np.abs(A - pop[i][self.ID_POS]))
             if case == 1:
                 pos_new = A + F1
-                pos_new = self.amend_position(pos_new)
-                fit_new = self.get_fitness_position(pos_new)
-                if self.compare_agent([pos_new, fit_new], pop[i]):
-                    pop[i] = [pos_new, fit_new]
+                pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
+                target = self.get_target_wrapper(pos_new)
+                if self.compare_agent([pos_new, target], pop[i]):
+                    pop[i] = [pos_new, target]
                 else:
                     case = 2
             else:
                 pos_new = pop[i][self.ID_POS] + F2
-                pos_new = self.amend_position(pos_new)
-                fit_new = self.get_fitness_position(pos_new)
-                if self.compare_agent([pos_new, fit_new], pop[i]):
-                    pop[i] = [pos_new, fit_new]
+                pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
+                target = self.get_target_wrapper(pos_new)
+                if self.compare_agent([pos_new, target], pop[i]):
+                    pop[i] = [pos_new, target]
                 else:
                     case = 1
         pop, _ = self.get_global_best_solution(pop)
@@ -138,10 +136,10 @@ class BaseQSA(Optimizer):
                 else:
                     X_new = pop[i][self.ID_POS] + np.random.exponential(0.5) * (A - pop[i1][self.ID_POS])
             else:
-                X_new = np.random.uniform(self.problem.lb, self.problem.ub)
-            pos_new = self.amend_position(X_new)
+                X_new = self.generate_position(self.problem.lb, self.problem.ub)
+            pos_new = self.amend_position(X_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         pop = self.greedy_selection_population(pop, pop_new)
         pop, _ = self.get_global_best_solution(pop)
         return pop
@@ -154,9 +152,9 @@ class BaseQSA(Optimizer):
             id1 = np.random.choice(self.pop_size)
             temp = g_best[self.ID_POS] + np.random.exponential(0.5, self.problem.n_dims) * (pop[id1][self.ID_POS] - pop[i][self.ID_POS])
             X_new = np.where(np.random.random(self.problem.n_dims) > pr[i], temp, X_new)
-            pos_new = self.amend_position(X_new)
+            pos_new = self.amend_position(X_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         pop_new = self.greedy_selection_population(pop, pop_new)
         return pop_new
 
@@ -193,7 +191,6 @@ class OppoQSA(BaseQSA):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -211,7 +208,7 @@ class OppoQSA(BaseQSA):
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, epoch, pop_size, **kwargs)
-        self.nfe_per_epoch = 4 * pop_size
+        self.nfe_per_epoch = 4 * self.pop_size
         self.sort_flag = True
 
     def _opposition_based(self, pop=None, g_best=None):
@@ -219,9 +216,9 @@ class OppoQSA(BaseQSA):
         pop_new = []
         for i in range(0, self.pop_size):
             X_new = self.create_opposition_position(pop[i], g_best)
-            pos_new = self.amend_position(X_new)
+            pos_new = self.amend_position(X_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         return self.greedy_selection_population(pop, pop_new)
 
     def evolve(self, epoch):
@@ -258,7 +255,6 @@ class LevyQSA(BaseQSA):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -276,7 +272,7 @@ class LevyQSA(BaseQSA):
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, epoch, pop_size, **kwargs)
-        self.nfe_per_epoch = 3 * pop_size
+        self.nfe_per_epoch = 3 * self.pop_size
         self.sort_flag = True
 
     def _update_business_2(self, pop=None, current_epoch=None):
@@ -303,12 +299,12 @@ class LevyQSA(BaseQSA):
                     X_new = pop[i][self.ID_POS] + np.random.normal(0, 1, self.problem.n_dims) * levy_step
                 else:
                     X_new = pop[i][self.ID_POS] + np.random.exponential(0.5) * (A - pop[id1][self.ID_POS])
-                pos_new = self.amend_position(X_new)
+                pos_new = self.amend_position(X_new, self.problem.lb, self.problem.ub)
             else:
-                pos_new = np.random.uniform(self.problem.lb, self.problem.ub)
-            pos_new = self.amend_position(pos_new)
+                pos_new = self.generate_position(self.problem.lb, self.problem.ub)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         pop_new = self.greedy_selection_population(pop, pop_new)
         pop_new, _ = self.get_global_best_solution(pop_new)
         return pop_new
@@ -345,7 +341,6 @@ class ImprovedQSA(OppoQSA, LevyQSA):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -368,7 +363,7 @@ class ImprovedQSA(OppoQSA, LevyQSA):
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, epoch, pop_size, **kwargs)
-        self.nfe_per_epoch = 4 * pop_size
+        self.nfe_per_epoch = 4 * self.pop_size
         self.sort_flag = True
 
     def evolve(self, epoch):
@@ -404,7 +399,6 @@ class OriginalQSA(BaseQSA):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -427,7 +421,7 @@ class OriginalQSA(BaseQSA):
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, epoch, pop_size, **kwargs)
-        self.nfe_per_epoch = 3 * pop_size
+        self.nfe_per_epoch = 3 * self.pop_size
         self.sort_flag = True
 
     def _update_business_3(self, pop, g_best):
@@ -442,9 +436,9 @@ class OriginalQSA(BaseQSA):
                     X1 = pop[i1][self.ID_POS]
                     X2 = pop[i2][self.ID_POS]
                     pos_new[j] = X1[j] + e * (X2[j] - pop[i][self.ID_POS][j])
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         return self.greedy_selection_population(pop, pop_new)
 
     def evolve(self, epoch):

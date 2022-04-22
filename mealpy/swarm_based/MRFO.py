@@ -31,15 +31,12 @@ class BaseMRFO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
     >>> pop_size = 50
-    >>> sample_count = 50
-    >>> inten_factor = 0.5
-    >>> zeta = 1.0
-    >>> model = BaseMRFO(problem_dict1, epoch, pop_size, sample_count, inten_factor, zeta)
+    >>> somersault_range = 2.0
+    >>> model = BaseMRFO(problem_dict1, epoch, pop_size, somersault_range)
     >>> best_position, best_fitness = model.solve()
     >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
 
@@ -58,12 +55,12 @@ class BaseMRFO(Optimizer):
             somersault_range (float): somersault factor that decides the somersault range of manta rays, default=2
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = 2 * pop_size
-        self.sort_flag = False
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.somersault_range = self.validator.check_int("somersault_range", somersault_range, [1.0, 5.0])
 
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.somersault_range = somersault_range
+        self.nfe_per_epoch = 2 * self.pop_size
+        self.sort_flag = False
 
     def evolve(self, epoch):
         """
@@ -104,9 +101,9 @@ class BaseMRFO(Optimizer):
                 else:
                     x_t1 = self.pop[idx][self.ID_POS] + r * (self.pop[idx - 1][self.ID_POS] - self.pop[idx][self.ID_POS]) + \
                            alpha * (self.g_best[self.ID_POS] - self.pop[idx][self.ID_POS])
-            pos_new = self.amend_position(x_t1)
+            pos_new = self.amend_position(x_t1, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         pop_new = self.greedy_selection_population(self.pop, pop_new)
         _, g_best = self.update_global_best_solution(pop_new, save=False)
         pop_child = []
@@ -114,7 +111,7 @@ class BaseMRFO(Optimizer):
             # Somersault foraging   (Eq. 8)
             x_t1 = pop_new[idx][self.ID_POS] + self.somersault_range * \
                    (np.random.uniform() * g_best[self.ID_POS] - np.random.uniform() * pop_new[idx][self.ID_POS])
-            pos_new = self.amend_position(x_t1)
+            pos_new = self.amend_position(x_t1, self.problem.lb, self.problem.ub)
             pop_child.append([pos_new, None])
-        pop_child = self.update_fitness_population(pop_child)
+        pop_child = self.update_target_wrapper_population(pop_child)
         self.pop = self.greedy_selection_population(pop_new, pop_child)

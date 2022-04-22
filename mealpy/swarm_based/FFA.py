@@ -34,7 +34,6 @@ class BaseFFA(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -72,20 +71,19 @@ class BaseFFA(Optimizer):
             exponent (int): Exponent (m in the paper), default = 2
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = int(pop_size * (pop_size + 1) / 2 * 0.5)
-        self.sort_flag = False
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.gamma = gamma
-        self.beta_base = beta_base
-        self.alpha = alpha
-        self.alpha_damp = alpha_damp
-        self.delta = delta
-        self.exponent = exponent
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.gamma = self.validator.check_float("gamma", gamma, (0, 1.0))
+        self.beta_base = self.validator.check_float("beta_base", beta_base, (0, 3.0))
+        self.alpha = self.validator.check_float("alpha", alpha, (0, 1.0))
+        self.alpha_damp = self.validator.check_float("alpha_damp", alpha_damp, (0, 1.0))
+        self.delta = self.validator.check_float("delta", delta, (0, 1.0))
+        self.exponent = self.validator.check_int("exponent", exponent, [2, 4])
 
         ## Dynamic variable
-        self.dyn_alpha = alpha  # Initial Value of Mutation Coefficient
+        self.nfe_per_epoch = int(self.pop_size * (self.pop_size + 1) / 2 * 0.5)
+        self.sort_flag = False
+        self.dyn_alpha = self.alpha  # Initial Value of Mutation Coefficient
 
     def evolve(self, epoch):
         """
@@ -111,11 +109,11 @@ class BaseFFA(Optimizer):
                     temp = np.matmul((self.pop[j][self.ID_POS] - agent[self.ID_POS]),
                                      np.random.uniform(0, 1, (self.problem.n_dims, self.problem.n_dims)))
                     pos_new = agent[self.ID_POS] + self.dyn_alpha * mutation_vector + beta * temp
-                    pos_new = self.amend_position(pos_new)
+                    pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
                     pop_child.append([pos_new, None])
             if len(pop_child) < 2:
                 continue
-            pop_child = self.update_fitness_population(pop_child)
+            pop_child = self.update_target_wrapper_population(pop_child)
             _, local_best = self.get_global_best_solution(pop_child)
             # Compare to Previous Solution
             if self.compare_agent(local_best, agent):

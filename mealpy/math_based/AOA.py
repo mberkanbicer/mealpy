@@ -35,7 +35,6 @@ class OriginalAOA(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -66,15 +65,14 @@ class OriginalAOA(Optimizer):
             moa_max (float): range max of Math Optimizer Accelerated, Default: 0.9,
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.alpha = self.validator.check_int("alpha", alpha, [2, 10])
+        self.miu = self.validator.check_float("miu", miu, [0.1, 2.0])
+        self.moa_min = self.validator.check_float("moa_min", moa_min, (0, 0.41))
+        self.moa_max = self.validator.check_float("moa_max", moa_max, (0.41, 1.0))
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = False
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.alpha = alpha
-        self.miu = miu
-        self.moa_min = moa_min
-        self.moa_max = moa_max
 
     def evolve(self, epoch):
         """
@@ -83,8 +81,8 @@ class OriginalAOA(Optimizer):
         Args:
             epoch (int): The current iteration
         """
-        moa = self.moa_min + epoch * ((self.moa_max - self.moa_min) / self.epoch)  # Eq. 2
-        mop = 1 - (epoch ** (1.0 / self.alpha)) / (self.epoch ** (1.0 / self.alpha))  # Eq. 4
+        moa = self.moa_min + (epoch+1) * ((self.moa_max - self.moa_min) / self.epoch)  # Eq. 2
+        mop = 1 - ((epoch+1) ** (1.0 / self.alpha)) / (self.epoch ** (1.0 / self.alpha))  # Eq. 4
 
         pop_new = []
         for idx in range(0, self.pop_size):
@@ -102,7 +100,7 @@ class OriginalAOA(Optimizer):
                         pos_new[j] = self.g_best[self.ID_POS][j] - mop * ((self.problem.ub[j] - self.problem.lb[j]) * self.miu + self.problem.lb[j])
                     else:
                         pos_new[j] = self.g_best[self.ID_POS][j] + mop * ((self.problem.ub[j] - self.problem.lb[j]) * self.miu + self.problem.lb[j])
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         self.pop = self.greedy_selection_population(self.pop, pop_new)

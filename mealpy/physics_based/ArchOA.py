@@ -37,7 +37,6 @@ class OriginalArchOA(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -78,19 +77,18 @@ class OriginalArchOA(Optimizer):
             acc_min (float): acceleration min, Default 0.1
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.c1 = self.validator.check_int("c1", c1, [1, 3])
+        self.c2 = self.validator.check_int("c2", c2, [2, 6])
+        self.c3 = self.validator.check_int("c3", c3, [1, 3])
+        self.c4 = self.validator.check_float("c4", c4, (0, 1.0))
+        self.acc_max = self.validator.check_float("acc_max", acc_max, (0.3, 1.0))
+        self.acc_min = self.validator.check_float("acc_min", acc_min, (0, 0.3))
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = False
 
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.c1 = c1
-        self.c2 = c2
-        self.c3 = c3
-        self.c4 = c4
-        self.acc_max = acc_max
-        self.acc_min = acc_min
-
-    def create_solution(self):
+    def create_solution(self, lb=None, ub=None):
         """
         To get the position, fitness wrapper, target and obj list
             + A[self.ID_POS]                  --> Return: position
@@ -99,15 +97,15 @@ class OriginalArchOA(Optimizer):
             + A[self.ID_TAR][self.ID_OBJ]     --> Return: [obj1, obj2, ...]
 
         Returns:
-            list: wrapper of solution with format [position, [target, [obj1, obj2, ...]], density, volume, acceleration]
+            list: wrapper of solution with format [position, target, density, volume, acceleration]
         """
-        position = np.random.uniform(self.problem.lb, self.problem.ub)
-        position = self.amend_position(position)
-        fitness = self.get_fitness_position(position=position)
-        den = np.random.uniform(self.problem.lb, self.problem.ub)
-        vol = np.random.uniform(self.problem.lb, self.problem.ub)
-        acc = self.problem.lb + np.random.uniform(self.problem.lb, self.problem.ub) * (self.problem.ub - self.problem.lb)
-        return [position, fitness, den, vol, acc]
+        position = self.generate_position(lb, ub)
+        position = self.amend_position(position, lb, ub)
+        target = self.get_target_wrapper(position)
+        den = np.random.uniform(lb, ub)
+        vol = np.random.uniform(lb, ub)
+        acc = lb + np.random.uniform(lb, ub) * (ub - lb)
+        return [position, target, den, vol, acc]
 
     def evolve(self, epoch):
         """
@@ -157,7 +155,7 @@ class OriginalArchOA(Optimizer):
                 t = self.c3 * tf
                 pos_new = self.g_best[self.ID_POS] + f * self.c2 * np.random.rand() * self.pop[idx][self.ID_ACC] * \
                           ddf * (t * self.g_best[self.ID_POS] - self.pop[idx][self.ID_POS])
-            solution[self.ID_POS] = self.amend_position(pos_new)
+            solution[self.ID_POS] = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append(solution)
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         self.pop = self.greedy_selection_population(self.pop, pop_new)

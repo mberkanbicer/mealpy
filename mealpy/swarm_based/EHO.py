@@ -4,7 +4,6 @@
 #       Github: https://github.com/thieu1995        %
 # --------------------------------------------------%
 
-
 import numpy as np
 from copy import deepcopy
 from mealpy.optimizer import Optimizer
@@ -35,7 +34,6 @@ class BaseEHO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -64,15 +62,13 @@ class BaseEHO(Optimizer):
             n_clans (int): the number of clans, default=5
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size + n_clans
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.alpha = alpha
-        self.beta = beta
-        self.n_clans = n_clans
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.alpha = self.validator.check_float("alpha", alpha, (0, 3.0))
+        self.beta = self.validator.check_float("beta", beta, (0, 1.0))
+        self.n_clans = self.validator.check_int("n_clans", n_clans, [2, int(self.pop_size/5)])
         self.n_individuals = int(self.pop_size / self.n_clans)
-
-        self.nfe_per_epoch = pop_size + self.n_clans
+        self.nfe_per_epoch = self.pop_size + self.n_clans
         self.sort_flag = False
 
     def _create_pop_group(self, pop):
@@ -106,14 +102,14 @@ class BaseEHO(Optimizer):
             else:
                 pos_new = self.pop_group[clan_idx][pos_clan_idx][self.ID_POS] + self.alpha * np.random.uniform() * \
                           (self.pop_group[clan_idx][0][self.ID_POS] - self.pop_group[clan_idx][pos_clan_idx][self.ID_POS])
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
         # Update fitness value
-        self.pop = self.update_fitness_population(pop_new)
+        self.pop = self.update_target_wrapper_population(pop_new)
         self.pop_group = self._create_pop_group(self.pop)
 
         # Separating operator
         for i in range(0, self.n_clans):
             self.pop_group[i], _ = self.get_global_best_solution(self.pop_group[i])
-            self.pop_group[i][-1] = self.create_solution()
+            self.pop_group[i][-1] = self.create_solution(self.problem.lb, self.problem.ub)
         self.pop = [agent for pack in self.pop_group for agent in pack]

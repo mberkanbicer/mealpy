@@ -18,7 +18,7 @@ class BaseSFO(Optimizer):
 
     Hyper-parameters should fine tuned in approximate range to get faster convergen toward the global optimum:
         + pp (float): the rate between SailFish and Sardines (N_sf = N_s * pp) = 0.25, 0.2, 0.1
-        + AP (int): A = 4, 6,... (coefficient for decreasing the value of Attack Power linearly from AP to 0)
+        + AP (float): coefficient for decreasing the value of Attack Power linearly from AP to 0
         + epxilon (float): should be 0.0001, 0.001
 
     Examples
@@ -34,7 +34,6 @@ class BaseSFO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -60,19 +59,18 @@ class BaseSFO(Optimizer):
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100, SailFish pop size
             pp (float): the rate between SailFish and Sardines (N_sf = N_s * pp) = 0.25, 0.2, 0.1
-            AP (int): A = 4, 6,... (coefficient for decreasing the value of Power Attack linearly from AP to 0)
+            AP (float): coefficient for decreasing the value of Power Attack linearly from AP to 0
             epxilon (float): should be 0.0001, 0.001
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = 2 * pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.pp = self.validator.check_float("pp", pp, (0, 1.0))
+        self.AP = self.validator.check_float("AP", AP, (0, 100))
+        self.epxilon = self.validator.check_float("epxilon", epxilon, (0, 0.1))
+
+        self.nfe_per_epoch = 2 * self.pop_size
         self.sort_flag = True
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.pp = pp
-        self.AP = AP
-        self.epxilon = epxilon
-
         self.s_size = int(self.pop_size / self.pp)
 
     def initialization(self):
@@ -95,11 +93,11 @@ class BaseSFO(Optimizer):
         PD = 1 - self.pop_size / (self.pop_size + self.s_size)
         for i in range(0, self.pop_size):
             lamda_i = 2 * np.random.uniform() * PD - PD
-            pos_new = self.s_gbest[self.ID_POS] - lamda_i * (np.random.uniform() *
-                                                             (self.pop[i][self.ID_POS] + self.s_gbest[self.ID_POS]) / 2 - self.pop[i][self.ID_POS])
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.s_gbest[self.ID_POS] - lamda_i * \
+                (np.random.uniform() * (self.pop[i][self.ID_POS] + self.s_gbest[self.ID_POS]) / 2 - self.pop[i][self.ID_POS])
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        self.pop = self.update_fitness_population(pop_new)
+        self.pop = self.update_target_wrapper_population(pop_new)
         nfe_epoch += self.pop_size
 
         ## Calculate AttackPower using Eq.(10)
@@ -116,15 +114,15 @@ class BaseSFO(Optimizer):
                     list2 = np.random.choice(range(0, self.problem.n_dims), beta, replace=False)
                     pos_new[list2] = (np.random.uniform(0, 1, self.problem.n_dims) *
                                       (self.pop[self.ID_POS] - self.s_pop[i][self.ID_POS] + AP))[list2]
-                    pos_new = self.amend_position(pos_new)
+                    pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
                     self.s_pop[i] = [pos_new, None]
         else:
             ### Update the position of all sardine using Eq.(9)
             for i in range(0, self.s_size):
                 pos_new = np.random.uniform() * (self.g_best[self.ID_POS] - self.s_pop[i][self.ID_POS] + AP)
-                self.s_pop[i][self.ID_POS] = self.amend_position(pos_new)
+                self.s_pop[i][self.ID_POS] = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
         ## Recalculate the fitness of all sardine
-        self.s_pop = self.update_fitness_population(self.s_pop)
+        self.s_pop = self.update_target_wrapper_population(self.s_pop)
         nfe_epoch += self.s_size
 
         ## Sort the population of sailfish and sardine (for reducing computational cost)
@@ -140,7 +138,7 @@ class BaseSFO(Optimizer):
                 #### Especially when sardine pop size >> sailfish pop size
         temp = self.s_size - len(self.s_pop)
         if temp == 1:
-            self.s_pop = self.s_pop + [self.create_solution()]
+            self.s_pop = self.s_pop + [self.create_solution(self.problem.lb, self.problem.ub)]
         else:
             self.s_pop = self.s_pop + self.create_population(self.s_size - len(self.s_pop))
         _, self.s_gbest = self.get_global_best_solution(self.s_pop)
@@ -173,7 +171,6 @@ class ImprovedSFO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -198,13 +195,12 @@ class ImprovedSFO(Optimizer):
             pp (float): the rate between SailFish and Sardines (N_sf = N_s * pp) = 0.25, 0.2, 0.1
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = 2 * pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.pp = self.validator.check_float("pp", pp, (0, 1.0))
+
+        self.nfe_per_epoch = 2 * self.pop_size
         self.sort_flag = True
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.pp = pp
-
         self.s_size = int(self.pop_size / self.pp)
 
     def initialization(self):
@@ -227,11 +223,11 @@ class ImprovedSFO(Optimizer):
         for i in range(0, self.pop_size):
             PD = 1 - len(self.pop) / (len(self.pop) + len(self.s_pop))
             lamda_i = 2 * np.random.uniform() * PD - PD
-            pos_new = self.s_gbest[self.ID_POS] - lamda_i * (np.random.uniform() *
-                                                             (self.g_best[self.ID_POS] + self.s_gbest[self.ID_POS]) / 2 - self.pop[i][self.ID_POS])
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.s_gbest[self.ID_POS] - \
+                lamda_i * (np.random.uniform() * (self.g_best[self.ID_POS] + self.s_gbest[self.ID_POS]) / 2 - self.pop[i][self.ID_POS])
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        self.pop = self.update_fitness_population(pop_new)
+        self.pop = self.update_target_wrapper_population(pop_new)
         nfe_epoch += self.pop_size
 
         ## ## Calculate AttackPower using my Eq.thieu
@@ -241,14 +237,14 @@ class ImprovedSFO(Optimizer):
             for i in range(0, len(self.s_pop)):
                 temp = (self.g_best[self.ID_POS] + AP) / 2
                 pos_new = self.problem.lb + self.problem.ub - temp + np.random.uniform() * (temp - self.s_pop[i][self.ID_POS])
-                self.s_pop[i][self.ID_POS] = self.amend_position(pos_new)
+                self.s_pop[i][self.ID_POS] = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
         else:
             ### Update the position of all sardine using Eq.(9)
             for i in range(0, len(self.s_pop)):
                 pos_new = np.random.uniform() * (self.g_best[self.ID_POS] - self.s_pop[i][self.ID_POS] + AP)
-                self.s_pop[i][self.ID_POS] = self.amend_position(pos_new)
+                self.s_pop[i][self.ID_POS] = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
         ## Recalculate the fitness of all sardine
-        self.s_pop = self.update_fitness_population(self.s_pop)
+        self.s_pop = self.update_target_wrapper_population(self.s_pop)
         nfe_epoch += len(self.s_pop)
 
         ## Sort the population of sailfish and sardine (for reducing computational cost)

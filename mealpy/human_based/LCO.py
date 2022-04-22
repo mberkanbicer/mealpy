@@ -32,7 +32,6 @@ class OriginalLCO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -56,13 +55,12 @@ class OriginalLCO(Optimizer):
             r1 (float): coefficient factor
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
-        self.sort_flag = True
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.r1 = r1
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.r1 = self.validator.check_float("r1", r1, [1.0, 3.0])
         self.n_agents = int(np.ceil(np.sqrt(self.pop_size)))
+        self.nfe_per_epoch = self.pop_size
+        self.sort_flag = True
 
     def evolve(self, epoch):
         """
@@ -90,9 +88,9 @@ class OriginalLCO(Optimizer):
                 temp = self.pop[i][self.ID_POS] + np.random.random() * better_diff + np.random.random() * best_diff
             else:
                 temp = self.problem.ub - (self.pop[i][self.ID_POS] - self.problem.lb) * np.random.random()
-            pos_new = self.amend_position(temp)
+            pos_new = self.amend_position(temp, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        self.pop = self.update_fitness_population(pop_new)
+        self.pop = self.update_target_wrapper_population(pop_new)
 
 
 class BaseLCO(OriginalLCO):
@@ -119,7 +117,6 @@ class BaseLCO(OriginalLCO):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -139,7 +136,7 @@ class BaseLCO(OriginalLCO):
             r1 (float): coefficient factor
         """
         super().__init__(problem, epoch, pop_size, r1, **kwargs)
-        self.nfe_per_epoch = pop_size
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = True
 
     def evolve(self, epoch):
@@ -167,9 +164,9 @@ class BaseLCO(OriginalLCO):
                 temp = self.pop[i][self.ID_POS] + np.random.uniform() * better_diff + np.random.uniform() * best_diff
             else:
                 temp = self.problem.ub - (self.pop[i][self.ID_POS] - self.problem.lb) * np.random.uniform(self.problem.lb, self.problem.ub)
-            pos_new = self.amend_position(temp)
+            pos_new = self.amend_position(temp, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        self.pop = self.update_fitness_population(pop_new)
+        self.pop = self.update_target_wrapper_population(pop_new)
 
 
 class ImprovedLCO(Optimizer):
@@ -195,7 +192,6 @@ class ImprovedLCO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -213,13 +209,11 @@ class ImprovedLCO(Optimizer):
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = 2 * pop_size
-        self.sort_flag = True
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
         self.pop_len = int(self.pop_size / 2)
+        self.nfe_per_epoch = 2 * self.pop_size
+        self.sort_flag = True
 
     def evolve(self, epoch):
         """
@@ -246,9 +240,9 @@ class ImprovedLCO(Optimizer):
                 pos_new = self.pop[i][self.ID_POS] + better_diff + best_diff
             else:
                 pos_new = self.problem.ub - (self.pop[i][self.ID_POS] - self.problem.lb) * np.random.uniform(self.problem.lb, self.problem.ub)
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
 
         ## Sort the updated population based on fitness
         pop, local_best = self.get_global_best_solution(pop_new)
@@ -257,8 +251,8 @@ class ImprovedLCO(Optimizer):
         ## Mutation scheme
         for i in range(0, self.pop_len):
             pos_new = pop_s1[i][self.ID_POS] * (1 + np.random.normal(0, 1, self.problem.n_dims))
-            pop_s1[i][self.ID_POS] = self.amend_position(pos_new)
-        pop_s1 = self.update_fitness_population(pop_s1)
+            pop_s1[i][self.ID_POS] = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
+        pop_s1 = self.update_target_wrapper_population(pop_s1)
 
         ## Search Mechanism
         pos_s1_list = [item[self.ID_POS] for item in pop_s1]
@@ -266,8 +260,8 @@ class ImprovedLCO(Optimizer):
         for i in range(0, self.pop_len):
             pos_new = (local_best[self.ID_POS] - pos_s1_mean) - np.random.random() * \
                       (self.problem.lb + np.random.random() * (self.problem.ub - self.problem.lb))
-            pop_s2[i][self.ID_POS] = self.amend_position(pos_new)
-        pop_s2 = self.update_fitness_population(pop_s2)
+            pop_s2[i][self.ID_POS] = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
+        pop_s2 = self.update_target_wrapper_population(pop_s2)
 
         ## Construct a new population
         self.pop = pop_s1 + pop_s2

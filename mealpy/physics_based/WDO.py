@@ -41,7 +41,7 @@ class BaseWDO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
+    >>>     "log_to": None,
     >>> }
     >>>
     >>> epoch = 1000
@@ -75,17 +75,16 @@ class BaseWDO(Optimizer):
             max_v (float): maximum allowed speed, default=0.3
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.RT = self.validator.check_int("RT", RT, [1, 4])
+        self.g_c = self.validator.check_float("g_c", g_c, (0, 1.0))
+        self.alp = self.validator.check_float("alp", alp, (0, 1.0))
+        self.c_e = self.validator.check_float("c_e", c_e, (0, 1.0))
+        self.max_v = self.validator.check_float("max_v", max_v, (0, 1.0))
+
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = False
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.RT = RT
-        self.g_c = g_c
-        self.alp = alp
-        self.c_e = c_e
-        self.max_v = max_v
-
         ## Dynamic variable
         self.dyn_list_velocity = self.max_v * np.random.uniform(self.problem.lb, self.problem.ub, (self.pop_size, self.problem.n_dims))
 
@@ -107,6 +106,6 @@ class BaseWDO(Optimizer):
             # Update air parcel positions, check the bound and calculate pressure (fitness)
             self.dyn_list_velocity[idx] = vel
             pos = self.pop[idx][self.ID_POS] + vel
-            pos_new = self.amend_position(pos)
+            pos_new = self.amend_position(pos, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        self.pop = self.update_fitness_population(pop_new)
+        self.pop = self.update_target_wrapper_population(pop_new)

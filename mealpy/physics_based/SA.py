@@ -35,7 +35,6 @@ class BaseSA(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -73,19 +72,18 @@ class BaseSA(Optimizer):
             mutation_step_size_damp (float): Mutation Step Size Damp, default=0.99
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size * max_sub_iter * move_count
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.max_sub_iter = self.validator.check_int("max_sub_iter", max_sub_iter, [1, 100000])
+        self.t0 = self.validator.check_int("t0", t0, [500, 2000])
+        self.t1 = self.validator.check_int("t1", t1, [1, 100])
+        self.move_count = self.validator.check_int("move_count", move_count, [2, int(self.pop_size/2)])
+        self.mutation_rate = self.validator.check_float("mutation_rate", mutation_rate, (0, 1.0))
+        self.mutation_step_size = self.validator.check_float("mutation_step_size", mutation_step_size, (0, 1.0))
+        self.mutation_step_size_damp = self.validator.check_float("mutation_step_size_damp", mutation_step_size_damp, (0, 1.0))
+
+        self.nfe_per_epoch = self.pop_size * self.max_sub_iter * self.move_count
         self.sort_flag = True
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.max_sub_iter = max_sub_iter
-        self.t0 = t0
-        self.t1 = t1
-        self.move_count = move_count
-        self.mutation_rate = mutation_rate
-        self.mutation_step_size = mutation_step_size
-        self.mutation_step_size_damp = mutation_step_size_damp
-
         self.dyn_t, self.t_damp, self.dyn_sigma = None, None, None
 
     def _mutate(self, position, sigma):
@@ -95,7 +93,7 @@ class BaseSA(Optimizer):
 
         if np.all(pos_new == position):  # Select at least one variable to _mutate
             pos_new[np.random.randint(0, self.problem.n_dims)] = np.random.uniform()
-        return self.amend_position(pos_new)
+        return self.amend_position(pos_new, self.problem.lb, self.problem.ub)
 
     def initialization(self):
         # Initial Temperature
@@ -121,9 +119,9 @@ class BaseSA(Optimizer):
                 for j in range(0, self.move_count):
                     # Perform Mutation (Move)
                     pos_new = self._mutate(self.pop[i][self.ID_POS], self.dyn_sigma)
-                    pos_new = self.amend_position(pos_new)
+                    pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
                     pop_new.append([pos_new, None])
-            pop_new = self.update_fitness_population(pop_new)
+            pop_new = self.update_target_wrapper_population(pop_new)
 
             # Columnize and Sort Newly Created Population
             pop_new = self.get_sorted_strim_population(pop_new, self.pop_size)

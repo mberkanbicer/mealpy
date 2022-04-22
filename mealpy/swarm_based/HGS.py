@@ -33,7 +33,6 @@ class OriginalHGS(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -62,15 +61,15 @@ class OriginalHGS(Optimizer):
             LH (float): Largest hunger / threshold, default = 10000
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.PUP = self.validator.check_float("PUP", PUP, (0, 1.0))
+        self.LH = self.validator.check_float("LH", LH, [1000, 20000])
+
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = False
 
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.PUP = PUP
-        self.LH = LH
-
-    def create_solution(self):
+    def create_solution(self, lb=None, ub=None):
         """
         To get the position, fitness wrapper, target and obj list
             + A[self.ID_POS]                  --> Return: position
@@ -79,13 +78,13 @@ class OriginalHGS(Optimizer):
             + A[self.ID_TAR][self.ID_OBJ]     --> Return: [obj1, obj2, ...]
 
         Returns:
-            list: wrapper of solution with format [position, [target, [obj1, obj2, ...]], hunger]
+            list: wrapper of solution with format [position, target, hunger]
         """
-        position = np.random.uniform(self.problem.lb, self.problem.ub)
-        position = self.amend_position(position)
-        fitness = self.get_fitness_position(position=position)
+        position = np.random.uniform(lb, ub)
+        position = self.amend_position(position, lb, ub)
+        target = self.get_target_wrapper(position)
         hunger = 1.0
-        return [position, fitness, hunger]
+        return [position, target, hunger]
 
     def sech(self, x):
         if np.abs(x) > 50:
@@ -118,7 +117,8 @@ class OriginalHGS(Optimizer):
         """
         ## Eq. (2.2)
         ### Find the current best and current worst
-        g_best, g_worst = self.get_global_best_global_worst_solution(self.pop)
+        _, best, worst = self.get_special_solutions(self.pop, best=1, worst=1)
+        g_best, g_worst = best[0], worst[0]
         pop = self.update_hunger_value(self.pop, g_best, g_worst)
 
         ## Eq. (2.4)
@@ -151,6 +151,6 @@ class OriginalHGS(Optimizer):
                     pos_new = W1 * g_best[self.ID_POS] + R * W2 * abs(g_best[self.ID_POS] - current_agent[self.ID_POS])
                 else:
                     pos_new = W1 * g_best[self.ID_POS] - R * W2 * abs(g_best[self.ID_POS] - current_agent[self.ID_POS])
-            current_agent[self.ID_POS] = self.amend_position(pos_new)
+            current_agent[self.ID_POS] = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append(current_agent)
-        self.pop = self.update_fitness_population(pop_new)
+        self.pop = self.update_target_wrapper_population(pop_new)

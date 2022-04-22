@@ -36,7 +36,6 @@ class BaseFA(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -70,16 +69,15 @@ class BaseFA(Optimizer):
             m_sparks (int): number of sparks generated in each explosion generation, default=5
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.max_sparks = self.validator.check_int("max_sparks", max_sparks, [2, int(self.pop_size/2)])
+        self.p_a = self.validator.check_float("p_a", p_a, (0, 1.0))
+        self.p_b = self.validator.check_float("p_b", p_b, (0, 1.0))
+        self.max_ea = self.validator.check_int("max_ea", max_ea, [2, 100])
+        self.m_sparks = self.validator.check_int("m_sparks", m_sparks, [2, int(self.pop_size/2)])
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = False
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.max_sparks = max_sparks
-        self.p_a = p_a
-        self.p_b = p_b
-        self.max_ea = max_ea
-        self.m_sparks = m_sparks
 
     def evolve(self, epoch):
         """
@@ -114,10 +112,10 @@ class BaseFA(Optimizer):
                 pos_new[list_idx] = pos_new[list_idx] + displacement
                 pos_new = np.where(np.logical_or(pos_new < self.problem.lb, pos_new > self.problem.ub),
                                    self.problem.lb + np.abs(pos_new) % (self.problem.ub - self.problem.lb), pos_new)
-                pos_new = self.amend_position(pos_new)
+                pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
                 pop_new.append([pos_new, None])
                 nfe_epoch += 1
-            pop_new = self.update_fitness_population(pop_new)
+            pop_new = self.update_target_wrapper_population(pop_new)
 
         for _ in range(0, self.m_sparks):
             idx = np.random.randint(0, self.pop_size)
@@ -126,10 +124,10 @@ class BaseFA(Optimizer):
             pos_new[list_idx] = pos_new[list_idx] + np.random.normal(0, 1)  # Gaussian
             pos_new = np.where(np.logical_or(pos_new < self.problem.lb, pos_new > self.problem.ub), self.problem.lb + \
                                np.abs(pos_new) % (self.problem.ub - self.problem.lb), pos_new)
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
             nfe_epoch += 1
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
 
         ## Update the global best
         self.pop = self.get_sorted_strim_population(pop_new + self.pop, self.pop_size)

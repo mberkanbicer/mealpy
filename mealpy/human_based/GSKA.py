@@ -37,7 +37,6 @@ class BaseGSKA(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -59,13 +58,12 @@ class BaseGSKA(Optimizer):
             kr (float): knowledge ratio, default = 0.7
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.pb = self.validator.check_float("pb", pb, (0, 1.0))
+        self.kr = self.validator.check_float("kr", kr, (0, 1.0))
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = True
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.pb = pb
-        self.kr = kr
 
     def evolve(self, epoch):
         """
@@ -115,9 +113,9 @@ class BaseGSKA(Optimizer):
                                   (self.pop[rand_mid][self.ID_POS] - self.pop[idx][self.ID_POS])
                 else:
                     pos_new = np.random.uniform(self.problem.lb, self.problem.ub)
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        self.pop = self.update_fitness_population(pop_new)
+        self.pop = self.update_target_wrapper_population(pop_new)
 
 
 class OriginalGSKA(Optimizer):
@@ -146,7 +144,6 @@ class OriginalGSKA(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -178,15 +175,14 @@ class OriginalGSKA(Optimizer):
             kg (int): Number of generations effect to D-dimension, default = 5
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.pb = self.validator.check_float("pb", pb, (0, 1.0))
+        self.kf = self.validator.check_float("kf", kf, (0, 1.0))
+        self.kr = self.validator.check_float("kr", kr, (0, 1.0))
+        self.kg = self.validator.check_int("kg", kg, [1, 1 + int(epoch / 2)])
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = True
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.pb = pb
-        self.kf = kf
-        self.kr = kr
-        self.kg = kg
 
     def evolve(self, epoch):
         """
@@ -238,6 +234,6 @@ class OriginalGSKA(Optimizer):
                             pos_new[j] = self.pop[idx][self.ID_POS][j] + self.kf * \
                                          (self.pop[rand_best][self.ID_POS][j] - self.pop[rand_worst][self.ID_POS][j] +
                                           self.pop[idx][self.ID_POS][j] - self.pop[rand_mid][self.ID_POS][j])
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        self.pop = self.update_fitness_population(pop_new)
+        self.pop = self.update_target_wrapper_population(pop_new)

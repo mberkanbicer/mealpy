@@ -37,7 +37,6 @@ class BaseHS(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -59,16 +58,15 @@ class BaseHS(Optimizer):
             pa_r (float): Pitch Adjustment Rate, default=0.5
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
-        self.sort_flag = False
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.c_r = self.validator.check_float("c_r", c_r, (0, 1.0))
+        self.pa_r = self.validator.check_float("pa_r", pa_r, (0, 1.0))
 
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.c_r = c_r
-        self.pa_r = pa_r
+        self.nfe_per_epoch = self.pop_size
+        self.sort_flag = False
         self.fw = 0.0001 * (self.problem.ub - self.problem.lb)  # Fret Width (Bandwidth)
         self.fw_damp = 0.9995  # Fret Width Damp Ratio
-
         self.dyn_fw = self.fw
 
     def evolve(self, epoch):
@@ -89,9 +87,9 @@ class BaseHS(Optimizer):
             # Pitch Adjustment
             x_new = pos_new + delta
             pos_new = np.where(np.random.uniform(0, 1, self.problem.n_dims) < self.pa_r, x_new, pos_new)
-            pos_new = self.amend_position(pos_new)  # Check the bound
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
 
         # Update Damp Fret Width
         self.dyn_fw = self.dyn_fw * self.fw_damp
@@ -151,7 +149,7 @@ class OriginalHS(BaseHS):
             pa_r (float): Pitch Adjustment Rate, default=0.5
         """
         super().__init__(problem, epoch, pop_size, c_r, pa_r, **kwargs)
-        self.nfe_per_epoch = pop_size
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = False
 
     def evolve(self, epoch):
@@ -173,9 +171,9 @@ class OriginalHS(BaseHS):
                 if np.random.uniform() <= self.pa_r:
                     delta = self.dyn_fw * np.random.normal(self.problem.lb, self.problem.ub)  # Gaussian(Normal)
                     pos_new[j] = pos_new[j] + delta[j]
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
 
         # Update Damp Fret Width
         self.dyn_fw = self.dyn_fw * self.fw_damp

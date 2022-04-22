@@ -32,7 +32,6 @@ class BaseNMRA(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -57,13 +56,13 @@ class BaseNMRA(Optimizer):
             pb (float): probability of breeding, default = 0.75
         """
         super().__init__(problem, kwargs)
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.pb = self.validator.check_float("pb", pb, (0, 1.0))
+
         self.nfe_per_epoch = self.pop_size
         self.sort_flag = True
-
-        self.epoch = epoch
-        self.pop_size = pop_size
         self.size_b = int(self.pop_size / 5)
-        self.pb = pb
 
     def evolve(self, epoch):
         """
@@ -82,9 +81,9 @@ class BaseNMRA(Optimizer):
             else:  # working operators
                 t1, t2 = np.random.choice(range(self.size_b, self.pop_size), 2, replace=False)
                 pos_new = self.pop[idx][self.ID_POS] + np.random.uniform() * (self.pop[t1][self.ID_POS] - self.pop[t2][self.ID_POS])
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         self.pop = self.greedy_selection_population(self.pop, pop_new)
 
 
@@ -114,7 +113,6 @@ class ImprovedNMRA(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -141,14 +139,14 @@ class ImprovedNMRA(Optimizer):
             pm (float): probability of mutation, default = 0.01
         """
         super().__init__(problem, kwargs)
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.pb = self.validator.check_float("pb", pb, (0, 1.0))
+        self.pm = self.validator.check_float("pm", pm, (0, 1.0))
+
         self.nfe_per_epoch = self.pop_size
         self.sort_flag = True
-
-        self.epoch = epoch
-        self.pop_size = pop_size
         self.size_b = int(self.pop_size / 5)
-        self.pb = pb
-        self.pm = pm
 
     def _crossover_random(self, pop, g_best):
         start_point = np.random.randint(0, self.problem.n_dims / 2)
@@ -192,7 +190,7 @@ class ImprovedNMRA(Optimizer):
             # Mutation
             temp = np.random.uniform(self.problem.lb, self.problem.ub)
             pos_new = np.where(np.random.uniform(0, 1, self.problem.n_dims) < self.pm, temp, pos_new)
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         self.pop = self.greedy_selection_population(self.pop, pop_new)

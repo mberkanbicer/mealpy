@@ -31,7 +31,6 @@ class BaseMFO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -54,11 +53,11 @@ class BaseMFO(Optimizer):
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
-        self.sort_flag = False
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
 
-        self.epoch = epoch
-        self.pop_size = pop_size
+        self.nfe_per_epoch = self.pop_size
+        self.sort_flag = False
 
     def evolve(self, epoch):
         """
@@ -93,9 +92,9 @@ class BaseMFO(Optimizer):
             pos_new = np.where(list_idx < num_flame, temp_1, temp_2)
 
             ## This is the way I make this algorithm working. I tried to run matlab code with large dimension and it doesn't convergence.
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_fitness_population(pop_new)
+        pop_new = self.update_target_wrapper_population(pop_new)
         self.pop = self.greedy_selection_population(self.pop, pop_new)
 
 
@@ -119,7 +118,6 @@ class OriginalMFO(BaseMFO):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -142,7 +140,7 @@ class OriginalMFO(BaseMFO):
             pop_size (int): number of population size, default = 100
         """
         super().__init__(problem, epoch, pop_size, **kwargs)
-        self.nfe_per_epoch = pop_size
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = False
 
     def evolve(self, epoch):
@@ -175,6 +173,6 @@ class OriginalMFO(BaseMFO):
                     # Eq.(3.12).
                     ## Here is a changed, I used the best position of flames not the position num_flame th (as original code)
                     pos_new[j] = distance_to_flame * np.exp(b * t) * np.cos(t * 2 * np.pi) + pop_flames[num_flame][self.ID_POS][j]
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        self.pop = self.update_fitness_population(pop_new)
+        self.pop = self.update_target_wrapper_population(pop_new)

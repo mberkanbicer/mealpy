@@ -33,7 +33,6 @@ class OriginalBBO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -61,14 +60,13 @@ class OriginalBBO(Optimizer):
             elites (int): Number of elites will be keep for next generation, default=2
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.p_m = self.validator.check_float("p_m", p_m, (0, 1.0))
+        self.elites = self.validator.check_int("elites", elites, [2, int(self.pop_size / 2)])
+
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = False
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.p_m = p_m
-        self.elites = elites
-
         self.mu = (self.pop_size + 1 - np.array(range(1, self.pop_size + 1))) / (self.pop_size + 1)
         self.mr = 1 - self.mu
 
@@ -98,10 +96,10 @@ class OriginalBBO(Optimizer):
 
             noise = np.random.uniform(self.problem.lb, self.problem.ub)
             pos_new = np.where(np.random.uniform(0, 1, self.problem.n_dims) < self.p_m, noise, pos_new)
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop.append([pos_new, None])
 
-        pop = self.update_fitness_population(pop)
+        pop = self.update_target_wrapper_population(pop)
         # replace the solutions with their new migrated and mutated versions then Merge Populations
         self.pop = self.get_sorted_strim_population(pop + pop_elites, self.pop_size)
 
@@ -109,9 +107,6 @@ class OriginalBBO(Optimizer):
 class BaseBBO(OriginalBBO):
     """
     My changed version of: Biogeography-Based Optimization (BBO)
-
-    Links:
-        1. https://ieeexplore.ieee.org/abstract/document/4475427
 
     Hyper-parameters should fine tuned in approximate range to get faster convergen toward the global optimum:
         + p_m: [0.01, 0.2], Mutation probability
@@ -130,7 +125,6 @@ class BaseBBO(OriginalBBO):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -152,7 +146,6 @@ class BaseBBO(OriginalBBO):
             pop_size (int): Number of population size, default = 100
             p_m (float): Mutation probability, default=0.01
             elites (int): Number of elites will be keep for next generation, default=2
-            **kwargs ():
         """
         super().__init__(problem, epoch, pop_size, p_m, elites, **kwargs)
 
@@ -175,8 +168,8 @@ class BaseBBO(OriginalBBO):
             # Mutation
             temp = np.random.uniform(self.problem.lb, self.problem.ub)
             pos_new = np.where(np.random.uniform(0, 1, self.problem.n_dims) < self.p_m, temp, pos_new)
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop.append([pos_new, None])
-        pop = self.update_fitness_population(pop)
+        pop = self.update_target_wrapper_population(pop)
         # Replace the solutions with their new migrated and mutated versions then merge populations
         self.pop = self.get_sorted_strim_population(pop + pop_elites, self.pop_size)

@@ -33,7 +33,6 @@ class OriginalHC(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -58,12 +57,11 @@ class OriginalHC(Optimizer):
             neighbour_size (int): fixed parameter, sensitive exploitation parameter, Default: 50
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.neighbour_size = self.validator.check_int("neighbour_size", neighbour_size, [2, self.pop_size])
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = False
-
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.neighbour_size = neighbour_size
 
     def evolve(self, epoch):
         """
@@ -77,9 +75,9 @@ class OriginalHC(Optimizer):
         pop_neighbours = []
         for i in range(0, self.neighbour_size):
             pos_new = self.g_best[self.ID_POS] + np.random.normal(0, 1, self.problem.n_dims) * step_size
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_neighbours.append([pos_new, None])
-        self.pop = self.update_fitness_population(pop_neighbours)
+        self.pop = self.update_target_wrapper_population(pop_neighbours)
 
 
 class BaseHC(OriginalHC):
@@ -111,7 +109,6 @@ class BaseHC(OriginalHC):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
@@ -130,7 +127,7 @@ class BaseHC(OriginalHC):
             neighbour_size (int): fixed parameter, sensitive exploitation parameter, Default: 50
         """
         super().__init__(problem, epoch, pop_size, neighbour_size, **kwargs)
-        self.nfe_per_epoch = pop_size
+        self.nfe_per_epoch = self.pop_size
         self.sort_flag = True
 
     def evolve(self, epoch):
@@ -147,9 +144,9 @@ class BaseHC(OriginalHC):
             pop_neighbours = []
             for j in range(0, self.neighbour_size):
                 pos_new = self.pop[idx][self.ID_POS] + np.random.normal(0, 1, self.problem.n_dims) * ss
-                pos_new = self.amend_position(pos_new)
+                pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
                 pop_neighbours.append([pos_new, None])
-            pop_neighbours = self.update_fitness_population(pop_neighbours)
+            pop_neighbours = self.update_target_wrapper_population(pop_neighbours)
             _, agent = self.get_global_best_solution(pop_neighbours)
             self.pop[idx] = agent
 

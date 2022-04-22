@@ -22,8 +22,8 @@ class BaseSBO(Optimizer):
     calculate probability by roulette-wheel. My version can also handle negative value
 
     Hyper-parameters should fine tuned in approximate range to get faster convergen toward the global optimum:
-        + alpha (float): [0.5, 0.99], the greatest step size
-        + pm (float): [0.01, 0.2], mutation probability
+        + alpha (float): [0.5, 2.0], the greatest step size
+        + p_m (float): [0.01, 0.2], mutation probability
         + psw (float): [0.01, 0.1], proportion of space width (z in the paper)
 
     Examples
@@ -39,40 +39,39 @@ class BaseSBO(Optimizer):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
     >>> pop_size = 50
     >>> alpha = 0.9
-    >>> pm=0.05
+    >>> p_m =0.05
     >>> psw = 0.02
-    >>> model = BaseSBO(problem_dict1, epoch, pop_size, alpha, pm, psw)
+    >>> model = BaseSBO(problem_dict1, epoch, pop_size, alpha, p_m, psw)
     >>> best_position, best_fitness = model.solve()
     >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
     """
 
-    def __init__(self, problem, epoch=10000, pop_size=100, alpha=0.94, pm=0.05, psw=0.02, **kwargs):
+    def __init__(self, problem, epoch=10000, pop_size=100, alpha=0.94, p_m=0.05, psw=0.02, **kwargs):
         """
         Args:
             problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
             alpha (float): the greatest step size, default=0.94
-            pm (float): mutation probability, default=0.05
+            p_m (float): mutation probability, default=0.05
             psw (float): proportion of space width (z in the paper), default=0.02
         """
         super().__init__(problem, kwargs)
-        self.nfe_per_epoch = pop_size
-        self.sort_flag = False
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.alpha = self.validator.check_float("alpha", alpha, [0.5, 3.0])
+        self.p_m = self.validator.check_float("p_m", p_m, (0, 1.0))
+        self.psw = self.validator.check_float("psw", psw, (0, 1.0))
 
-        self.epoch = epoch
-        self.pop_size = pop_size
-        self.alpha = alpha
-        self.p_m = pm
-        self.psw = psw
         # (percent of the difference between the upper and lower limit (Eq. 7))
         self.sigma = self.psw * (self.problem.ub - self.problem.lb)
+        self.nfe_per_epoch = self.pop_size
+        self.sort_flag = False
 
     def evolve(self, epoch):
         """
@@ -94,9 +93,9 @@ class BaseSBO(Optimizer):
             temp = self.pop[i][self.ID_POS] + np.random.normal(0, 1, self.problem.n_dims) * self.sigma
             pos_new = np.where(np.random.uniform(0, 1, self.problem.n_dims) < self.p_m, temp, pos_new)
             ### In-bound position
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        self.pop = self.update_fitness_population(pop_new)
+        self.pop = self.update_target_wrapper_population(pop_new)
 
 
 class OriginalSBO(BaseSBO):
@@ -109,7 +108,7 @@ class OriginalSBO(BaseSBO):
 
     Hyper-parameters should fine tuned in approximate range to get faster convergen toward the global optimum:
         + alpha (float): [0.5, 0.99], the greatest step size
-        + pm (float): [0.01, 0.2], mutation probability
+        + p_m (float): [0.01, 0.2], mutation probability
         + psw (float): [0.01, 0.1], proportion of space width (z in the paper)
 
     Examples
@@ -125,15 +124,14 @@ class OriginalSBO(BaseSBO):
     >>>     "lb": [-10, -15, -4, -2, -8],
     >>>     "ub": [10, 15, 12, 8, 20],
     >>>     "minmax": "min",
-    >>>     "verbose": True,
     >>> }
     >>>
     >>> epoch = 1000
     >>> pop_size = 50
     >>> alpha = 0.9
-    >>> pm=0.05
+    >>> p_m=0.05
     >>> psw = 0.02
-    >>> model = OriginalSBO(problem_dict1, epoch, pop_size, alpha, pm, psw)
+    >>> model = OriginalSBO(problem_dict1, epoch, pop_size, alpha, p_m, psw)
     >>> best_position, best_fitness = model.solve()
     >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
 
@@ -143,17 +141,17 @@ class OriginalSBO(BaseSBO):
     to optimize ANFIS for software development effort estimation. Engineering Applications of Artificial Intelligence, 60, pp.1-15.
     """
 
-    def __init__(self, problem, epoch=10000, pop_size=100, alpha=0.94, pm=0.05, psw=0.02, **kwargs):
+    def __init__(self, problem, epoch=10000, pop_size=100, alpha=0.94, p_m=0.05, psw=0.02, **kwargs):
         """
         Args:
             problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
             alpha (float): the greatest step size, default=0.94
-            pm (float): mutation probability, default=0.05
+            p_m (float): mutation probability, default=0.05
             psw (float): proportion of space width (z in the paper), default=0.02
         """
-        super().__init__(problem, epoch, pop_size, alpha, pm, psw, **kwargs)
+        super().__init__(problem, epoch, pop_size, alpha, p_m, psw, **kwargs)
 
     def _roulette_wheel_selection__(self, fitness_list=None) -> int:
         """
@@ -196,11 +194,11 @@ class OriginalSBO(BaseSBO):
                 idx = self._roulette_wheel_selection__(prob_list)
                 ### Calculating Step Size
                 lamda = self.alpha / (1 + prob_list[idx])
-                pos_new[j] = self.pop[i][self.ID_POS][j] + lamda * ((self.pop[idx][self.ID_POS][j] +
-                                                                     self.g_best[self.ID_POS][j]) / 2 - self.pop[i][self.ID_POS][j])
+                pos_new[j] = self.pop[i][self.ID_POS][j] + lamda * \
+                             ((self.pop[idx][self.ID_POS][j] + self.g_best[self.ID_POS][j]) / 2 - self.pop[i][self.ID_POS][j])
                 ### Mutation
                 if np.random.uniform() < self.p_m:
                     pos_new[j] = self.pop[i][self.ID_POS][j] + np.random.normal(0, 1) * self.sigma[j]
-            pos_new = self.amend_position(pos_new)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        self.pop = self.update_fitness_population(pop_new)
+        self.pop = self.update_target_wrapper_population(pop_new)
