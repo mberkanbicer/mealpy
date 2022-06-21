@@ -16,10 +16,10 @@ class BaseSMA(Optimizer):
     Notes
     ~~~~~
     + Selected 2 unique and random solution to create new solution (not to create variable) --> remove third loop in original version
-    + Check bound and update fitness after each individual move instead of after the whole population move in the original version
+    + Check bound and compare old position with new position to get the best one
     + This version not only faster but also better than the original version
 
-    Hyper-parameters should fine tuned in approximate range to get faster convergence toward the global optimum:
+    Hyper-parameters should fine-tune in approximate range to get faster convergence toward the global optimum:
         + p_t (float): [0.01, 0.1], probability threshold (z in the paper)
 
     Examples
@@ -63,17 +63,16 @@ class BaseSMA(Optimizer):
         self.nfe_per_epoch = self.pop_size
         self.sort_flag = True
 
-    def create_solution(self, lb=None, ub=None):
+    def create_solution(self, lb=None, ub=None, pos=None):
         """
-        Args:
-            lb: list of lower bound values
-            ub: list of upper bound values
+        Overriding method in Optimizer class
 
         Returns:
             list: [position, target, weight]
         """
-        position = self.generate_position(lb, ub)
-        position = self.amend_position(position, lb, ub)
+        if pos is None:
+            pos = self.generate_position(lb, ub)
+        position = self.amend_position(pos, lb, ub)
         target = self.get_target_wrapper(position)
         weight = np.zeros(len(lb))
         return [position, target, weight]
@@ -116,12 +115,17 @@ class BaseSMA(Optimizer):
 
                 pos_1 = self.g_best[self.ID_POS] + vb * (self.pop[idx][self.ID_WEI] * self.pop[id_a][self.ID_POS] - self.pop[id_b][self.ID_POS])
                 pos_2 = vc * self.pop[idx][self.ID_POS]
-                pos_new = np.where(np.random.uniform(0, 1, self.problem.n_dims) < p, pos_1, pos_2)
-
+                condition = np.random.random(self.problem.n_dims) < p
+                pos_new = np.where(condition, pos_1, pos_2)
             # Check bound and re-calculate fitness after each individual move
             pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None, np.zeros(self.problem.n_dims)])
-        self.pop = self.update_target_wrapper_population(pop_new)
+            if self.mode not in self.AVAILABLE_MODES:
+                target = self.get_target_wrapper(pos_new)
+                self.pop[idx] = self.get_better_solution([pos_new, target, np.zeros(self.problem.n_dims)], self.pop[idx])
+        if self.mode in self.AVAILABLE_MODES:
+            pop_new = self.update_target_wrapper_population(pop_new)
+            self.pop = self.greedy_selection_population(self.pop, pop_new)
 
 
 class OriginalSMA(BaseSMA):
@@ -132,7 +136,7 @@ class OriginalSMA(BaseSMA):
         1. https://doi.org/10.1016/j.future.2020.03.055
         2. https://www.researchgate.net/publication/340431861_Slime_mould_algorithm_A_new_method_for_stochastic_optimization
 
-    Hyper-parameters should fine tuned in approximate range to get faster convergence toward the global optimum:
+    Hyper-parameters should fine-tune in approximate range to get faster convergence toward the global optimum:
         + p_t (float): [0.01, 0.1], probability threshold (z in the paper)
 
     Examples
@@ -219,4 +223,7 @@ class OriginalSMA(BaseSMA):
                         current_agent[self.ID_POS][j] = vc[j] * current_agent[self.ID_POS][j]
             pos_new = self.amend_position(current_agent[self.ID_POS], self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None, np.zeros(self.problem.n_dims)])
-        self.pop = self.update_target_wrapper_population(pop_new)
+            if self.mode not in self.AVAILABLE_MODES:
+                self.pop[idx] = [pos_new, self.get_target_wrapper(pos_new), np.zeros(self.problem.n_dims)]
+        if self.mode in self.AVAILABLE_MODES:
+            self.pop = self.update_target_wrapper_population(pop_new)

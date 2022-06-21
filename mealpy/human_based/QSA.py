@@ -52,7 +52,7 @@ class BaseQSA(Optimizer):
         self.nfe_per_epoch = 3 * self.pop_size
         self.sort_flag = True
 
-    def _calculate_queue_length__(self, t1, t2, t3):
+    def calculate_queue_length__(self, t1, t2, t3):
         """
         Calculate length of each queue based on  t1, t2,t3
             + t1 = t1 * 1.0e+100
@@ -70,10 +70,10 @@ class BaseQSA(Optimizer):
         q3 = self.pop_size - q1 - q2
         return q1, q2, q3
 
-    def _update_business_1(self, pop=None, current_epoch=None):
+    def update_business_1__(self, pop=None, current_epoch=None):
         A1, A2, A3 = pop[0][self.ID_POS], pop[1][self.ID_POS], pop[2][self.ID_POS]
         t1, t2, t3 = pop[0][self.ID_TAR][self.ID_FIT], pop[1][self.ID_TAR][self.ID_FIT], pop[2][self.ID_TAR][self.ID_FIT]
-        q1, q2, q3 = self._calculate_queue_length__(t1, t2, t3)
+        q1, q2, q3 = self.calculate_queue_length__(t1, t2, t3)
         case = None
         for i in range(self.pop_size):
             if i < q1:
@@ -112,10 +112,10 @@ class BaseQSA(Optimizer):
         pop, _ = self.get_global_best_solution(pop)
         return pop
 
-    def _update_business_2(self, pop=None):
+    def update_business_2__(self, pop=None):
         A1, A2, A3 = pop[0][self.ID_POS], pop[1][self.ID_POS], pop[2][self.ID_POS]
         t1, t2, t3 = pop[0][self.ID_TAR][self.ID_FIT], pop[1][self.ID_TAR][self.ID_FIT], pop[2][self.ID_TAR][self.ID_FIT]
-        q1, q2, q3 = self._calculate_queue_length__(t1, t2, t3)
+        q1, q2, q3 = self.calculate_queue_length__(t1, t2, t3)
         pr = [i / self.pop_size for i in range(1, self.pop_size + 1)]
         if t1 > 1.0e-005:
             cv = t1 / (t2 + t3)
@@ -139,12 +139,15 @@ class BaseQSA(Optimizer):
                 X_new = self.generate_position(self.problem.lb, self.problem.ub)
             pos_new = self.amend_position(X_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_target_wrapper_population(pop_new)
-        pop = self.greedy_selection_population(pop, pop_new)
-        pop, _ = self.get_global_best_solution(pop)
-        return pop
+            if self.mode not in self.AVAILABLE_MODES:
+                target = self.get_target_wrapper(pos_new)
+                pop_new[-1] = self.get_better_solution([pos_new, target], pop[i])
+        if self.mode in self.AVAILABLE_MODES:
+            pop_new = self.update_target_wrapper_population(pop_new)
+            pop_new = self.greedy_selection_population(pop, pop_new)
+        return self.get_sorted_strim_population(pop_new, self.pop_size)
 
-    def _update_business_3(self, pop, g_best):
+    def update_business_3__(self, pop, g_best):
         pr = np.array([i / self.pop_size for i in range(1, self.pop_size + 1)])
         pop_new = []
         for i in range(self.pop_size):
@@ -154,8 +157,12 @@ class BaseQSA(Optimizer):
             X_new = np.where(np.random.random(self.problem.n_dims) > pr[i], temp, X_new)
             pos_new = self.amend_position(X_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_target_wrapper_population(pop_new)
-        pop_new = self.greedy_selection_population(pop, pop_new)
+            if self.mode not in self.AVAILABLE_MODES:
+                target = self.get_target_wrapper(pos_new)
+                pop_new[-1] = self.get_better_solution([pos_new, target], pop[i])
+        if self.mode in self.AVAILABLE_MODES:
+            pop_new = self.update_target_wrapper_population(pop_new)
+            pop_new = self.greedy_selection_population(pop, pop_new)
         return pop_new
 
     def evolve(self, epoch):
@@ -165,9 +172,9 @@ class BaseQSA(Optimizer):
         Args:
             epoch (int): The current iteration
         """
-        pop = self._update_business_1(self.pop, epoch + 1)
-        pop = self._update_business_2(pop)
-        self.pop = self._update_business_3(pop, self.g_best)
+        pop = self.update_business_1__(self.pop, epoch + 1)
+        pop = self.update_business_2__(pop)
+        self.pop = self.update_business_3__(pop, self.g_best)
 
 
 class OppoQSA(BaseQSA):
@@ -211,15 +218,20 @@ class OppoQSA(BaseQSA):
         self.nfe_per_epoch = 4 * self.pop_size
         self.sort_flag = True
 
-    def _opposition_based(self, pop=None, g_best=None):
+    def opposition_based__(self, pop=None, g_best=None):
         pop, _ = self.get_global_best_solution(pop)
         pop_new = []
         for i in range(0, self.pop_size):
             X_new = self.create_opposition_position(pop[i], g_best)
             pos_new = self.amend_position(X_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_target_wrapper_population(pop_new)
-        return self.greedy_selection_population(pop, pop_new)
+            if self.mode not in self.AVAILABLE_MODES:
+                target = self.get_target_wrapper(pos_new)
+                pop_new[-1] = self.get_better_solution([pos_new, target], pop[i])
+        if self.mode in self.AVAILABLE_MODES:
+            pop_new = self.update_target_wrapper_population(pop_new)
+            pop_new = self.greedy_selection_population(pop, pop_new)
+        return pop_new
 
     def evolve(self, epoch):
         """
@@ -228,10 +240,10 @@ class OppoQSA(BaseQSA):
         Args:
             epoch (int): The current iteration
         """
-        pop = self._update_business_1(self.pop, epoch + 1)
-        pop = self._update_business_2(pop)
-        pop = self._update_business_3(pop, self.g_best)
-        self.pop = self._opposition_based(pop, self.g_best)
+        pop = self.update_business_1__(self.pop, epoch + 1)
+        pop = self.update_business_2__(pop)
+        pop = self.update_business_3__(pop, self.g_best)
+        self.pop = self.opposition_based__(pop, self.g_best)
 
 
 class LevyQSA(BaseQSA):
@@ -275,10 +287,10 @@ class LevyQSA(BaseQSA):
         self.nfe_per_epoch = 3 * self.pop_size
         self.sort_flag = True
 
-    def _update_business_2(self, pop=None, current_epoch=None):
+    def update_business_2__(self, pop=None, current_epoch=None):
         A1, A2, A3 = pop[0][self.ID_POS], pop[1][self.ID_POS], pop[2][self.ID_POS]
         t1, t2, t3 = pop[0][self.ID_TAR][self.ID_FIT], pop[1][self.ID_TAR][self.ID_FIT], pop[2][self.ID_TAR][self.ID_FIT]
-        q1, q2, q3 = self._calculate_queue_length__(t1, t2, t3)
+        q1, q2, q3 = self.calculate_queue_length__(t1, t2, t3)
         pr = [i / self.pop_size for i in range(1, self.pop_size + 1)]
         if t1 > 1.0e-6:
             cv = t1 / (t2 + t3)
@@ -304,10 +316,13 @@ class LevyQSA(BaseQSA):
                 pos_new = self.generate_position(self.problem.lb, self.problem.ub)
             pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_target_wrapper_population(pop_new)
-        pop_new = self.greedy_selection_population(pop, pop_new)
-        pop_new, _ = self.get_global_best_solution(pop_new)
-        return pop_new
+            if self.mode not in self.AVAILABLE_MODES:
+                target = self.get_target_wrapper(pos_new)
+                pop_new[-1] = self.get_better_solution([pos_new, target], pop[i])
+        if self.mode in self.AVAILABLE_MODES:
+            pop_new = self.update_target_wrapper_population(pop_new)
+            pop_new = self.greedy_selection_population(pop, pop_new)
+        return self.get_sorted_strim_population(pop_new, self.pop_size)
 
     def evolve(self, epoch):
         """
@@ -316,9 +331,9 @@ class LevyQSA(BaseQSA):
         Args:
             epoch (int): The current iteration
         """
-        pop = self._update_business_1(self.pop, epoch + 1)
-        pop = self._update_business_2(pop, epoch + 1)
-        self.pop = self._update_business_3(pop, self.g_best)
+        pop = self.update_business_1__(self.pop, epoch + 1)
+        pop = self.update_business_2__(pop, epoch + 1)
+        self.pop = self.update_business_3__(pop, self.g_best)
 
 
 class ImprovedQSA(OppoQSA, LevyQSA):
@@ -373,10 +388,10 @@ class ImprovedQSA(OppoQSA, LevyQSA):
         Args:
             epoch (int): The current iteration
         """
-        pop = self._update_business_1(self.pop, epoch + 1)
-        pop = self._update_business_2(pop, epoch + 1)
-        pop = self._update_business_3(pop, self.g_best)
-        self.pop = self._opposition_based(pop, self.g_best)
+        pop = self.update_business_1__(self.pop, epoch + 1)
+        pop = self.update_business_2__(pop, epoch + 1)
+        pop = self.update_business_3__(pop, self.g_best)
+        self.pop = self.opposition_based__(pop, self.g_best)
 
 
 class OriginalQSA(BaseQSA):
@@ -424,7 +439,7 @@ class OriginalQSA(BaseQSA):
         self.nfe_per_epoch = 3 * self.pop_size
         self.sort_flag = True
 
-    def _update_business_3(self, pop, g_best):
+    def update_business_3__(self, pop, g_best):
         pr = [i / self.pop_size for i in range(1, self.pop_size + 1)]
         pop_new = []
         for i in range(self.pop_size):
@@ -438,8 +453,13 @@ class OriginalQSA(BaseQSA):
                     pos_new[j] = X1[j] + e * (X2[j] - pop[i][self.ID_POS][j])
             pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
-        pop_new = self.update_target_wrapper_population(pop_new)
-        return self.greedy_selection_population(pop, pop_new)
+            if self.mode not in self.AVAILABLE_MODES:
+                target = self.get_target_wrapper(pos_new)
+                pop_new[-1] = self.get_better_solution([pos_new, target], pop[i])
+        if self.mode in self.AVAILABLE_MODES:
+            pop_new = self.update_target_wrapper_population(pop_new)
+            pop_new = self.greedy_selection_population(pop, pop_new)
+        return pop_new
 
     def evolve(self, epoch):
         """
@@ -448,6 +468,6 @@ class OriginalQSA(BaseQSA):
         Args:
             epoch (int): The current iteration
         """
-        pop = self._update_business_1(self.pop, epoch)
-        pop = self._update_business_2(pop)
-        self.pop = self._update_business_3(pop, self.g_best)
+        pop = self.update_business_1__(self.pop, epoch)
+        pop = self.update_business_2__(pop)
+        self.pop = self.update_business_3__(pop, self.g_best)

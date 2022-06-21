@@ -16,7 +16,7 @@ class OriginalArchOA(Optimizer):
     Links:
         1. https://doi.org/10.1007/s10489-020-01893-z
 
-    Hyper-parameters should fine tuned in approximate range to get faster convergence toward the global optimum:
+    Hyper-parameters should fine-tune in approximate range to get faster convergence toward the global optimum:
         + c1 (int): factor, default belongs to [1, 2]
         + c2 (int): factor, Default belongs to [2, 4, 6]
         + c3 (int): factor, Default belongs to [1, 2]
@@ -88,19 +88,16 @@ class OriginalArchOA(Optimizer):
         self.nfe_per_epoch = self.pop_size
         self.sort_flag = False
 
-    def create_solution(self, lb=None, ub=None):
+    def create_solution(self, lb=None, ub=None, pos=None):
         """
-        To get the position, fitness wrapper, target and obj list
-            + A[self.ID_POS]                  --> Return: position
-            + A[self.ID_TAR]                  --> Return: [target, [obj1, obj2, ...]]
-            + A[self.ID_TAR][self.ID_FIT]     --> Return: target
-            + A[self.ID_TAR][self.ID_OBJ]     --> Return: [obj1, obj2, ...]
+        Overriding method in Optimizer class
 
         Returns:
             list: wrapper of solution with format [position, target, density, volume, acceleration]
         """
-        position = self.generate_position(lb, ub)
-        position = self.amend_position(position, lb, ub)
+        if pos is None:
+            pos = self.generate_position(lb, ub)
+        position = self.amend_position(pos, lb, ub)
         target = self.get_target_wrapper(position)
         den = np.random.uniform(lb, ub)
         vol = np.random.uniform(lb, ub)
@@ -125,7 +122,6 @@ class OriginalArchOA(Optimizer):
             # Update density and volume of each object using Eq. 7
             new_den = self.pop[i][self.ID_DEN] + np.random.uniform() * (self.g_best[self.ID_DEN] - self.pop[i][self.ID_DEN])
             new_vol = self.pop[i][self.ID_VOL] + np.random.uniform() * (self.g_best[self.ID_VOL] - self.pop[i][self.ID_VOL])
-
             # Exploration phase
             if tf <= 0.5:
                 # Update acceleration using Eq. 10 and normalize acceleration using Eq. 12
@@ -155,7 +151,12 @@ class OriginalArchOA(Optimizer):
                 t = self.c3 * tf
                 pos_new = self.g_best[self.ID_POS] + f * self.c2 * np.random.rand() * self.pop[idx][self.ID_ACC] * \
                           ddf * (t * self.g_best[self.ID_POS] - self.pop[idx][self.ID_POS])
-            solution[self.ID_POS] = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
+            pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
+            solution[self.ID_POS] = pos_new
             pop_new.append(solution)
-        pop_new = self.update_target_wrapper_population(pop_new)
-        self.pop = self.greedy_selection_population(self.pop, pop_new)
+            if self.mode not in self.AVAILABLE_MODES:
+                solution[self.ID_TAR] = self.get_target_wrapper(pos_new)
+                self.pop[idx] = self.get_better_solution(solution, self.pop[idx])
+        if self.mode in self.AVAILABLE_MODES:
+            pop_new = self.update_target_wrapper_population(pop_new)
+            self.pop = self.greedy_selection_population(self.pop, pop_new)

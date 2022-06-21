@@ -69,10 +69,8 @@ class OriginalCGO(Optimizer):
         Args:
             epoch (int): The current iteration
         """
-
         pop_new = []
         for idx in range(0, self.pop_size):
-
             s1, s2, s3 = np.random.choice(range(0, self.pop_size), 3, replace=False)
             MG = (self.pop[s1][self.ID_POS] + self.pop[s2][self.ID_POS] + self.pop[s3][self.ID_POS]) / 3
 
@@ -111,4 +109,7 @@ class OriginalCGO(Optimizer):
             ## Lots of grammar errors in this section, so confused to understand which strategy they are using
             _, best_seed = self.get_global_best_solution([sol1, sol2, sol3, sol4])
             pop_new.append(best_seed)
-        self.pop = self.greedy_selection_population(self.pop, pop_new)
+            if self.mode not in self.AVAILABLE_MODES:
+                self.pop[idx] = self.get_better_solution(best_seed, self.pop[idx])
+        if self.mode in self.AVAILABLE_MODES:
+            self.pop = self.greedy_selection_population(self.pop, pop_new)

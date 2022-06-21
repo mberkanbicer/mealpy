@@ -15,7 +15,7 @@ class BaseCRO(Optimizer):
     Links:
         1. http://downloads.hindawi.com/journals/tswj/2014/739768.pdf
 
-    Hyper-parameters should fine tuned in approximate range to get faster convergence toward the global optimum:
+    Hyper-parameters should fine-tune in approximate range to get faster convergence toward the global optimum:
         + po (float): [0.2, 0.5], the rate between free/occupied at the beginning
         + Fb (float): [0.6, 0.9], BroadcastSpawner/ExistingCorals rate
         + Fa (float): [0.05, 0.3], fraction of corals duplicates its self and tries to settle in a different part of the reef
@@ -101,19 +101,19 @@ class BaseCRO(Optimizer):
         self.occupied_idx_list = np.random.choice(list(range(self.pop_size)), self.num_occupied, replace=False)
         self.occupied_list[self.occupied_idx_list] = 1
 
-    def _gaussian_mutation(self, position):
-        temp = position + self.G1 * (self.problem.ub - self.problem.lb) * np.random.normal(0, 1, self.problem.n_dims)
-        pos_new = np.where(np.random.uniform(0, 1, self.problem.n_dims) < self.GCR, temp, position)
+    def gaussian_mutation__(self, position):
+        random_pos = position + self.G1 * (self.problem.ub - self.problem.lb) * np.random.normal(0, 1, self.problem.n_dims)
+        condition = np.random.random(self.problem.n_dims) < self.GCR
+        pos_new = np.where(condition, random_pos, position)
         return self.amend_position(pos_new, self.problem.lb, self.problem.ub)
 
     ### Crossover
-    def _multi_point_cross(self, pos1, pos2):
+    def multi_point_cross__(self, pos1, pos2):
         p1, p2 = np.random.choice(list(range(len(pos1))), 2, replace=False)
-        start = min(p1, p2)
-        end = max(p1, p2)
+        start, end = min(p1, p2), max(p1, p2)
         return np.concatenate((pos1[:start], pos2[start:end], pos1[end:]), axis=0)
 
-    def _larvae_setting(self, larvae):
+    def larvae_setting__(self, larvae):
         # Trial to land on a square of reefs
         for larva in larvae:
             for i in range(self.n_trials):
@@ -128,26 +128,29 @@ class BaseCRO(Optimizer):
                         self.pop[p] = larva
                         break
 
-    def _sort_occupied_reef(self):
+    def sort_occupied_reef__(self):
         def reef_fitness(idx):
             return self.pop[idx][self.ID_TAR][self.ID_FIT]
-
         idx_list_sorted = sorted(self.occupied_idx_list, key=reef_fitness)
         return idx_list_sorted
 
-    def broadcast_spawning_brooding(self):
+    def broadcast_spawning_brooding__(self):
         # Step 1a
         larvae = []
         selected_corals = np.random.choice(self.occupied_idx_list, int(len(self.occupied_idx_list) * self.Fb), replace=False)
         for i in self.occupied_idx_list:
             if i not in selected_corals:
-                pos_new = self._gaussian_mutation(self.pop[i][self.ID_POS])
+                pos_new = self.gaussian_mutation__(self.pop[i][self.ID_POS])
                 larvae.append([pos_new, None])
+                if self.mode not in self.AVAILABLE_MODES:
+                    larvae[-1][self.ID_TAR] = self.get_target_wrapper(pos_new)
         # Step 1b
         while len(selected_corals) >= 2:
             id1, id2 = np.random.choice(range(len(selected_corals)), 2, replace=False)
-            pos_new = self._multi_point_cross(self.pop[selected_corals[id1]][self.ID_POS], self.pop[selected_corals[id2]][self.ID_POS])
+            pos_new = self.multi_point_cross__(self.pop[selected_corals[id1]][self.ID_POS], self.pop[selected_corals[id2]][self.ID_POS])
             larvae.append([pos_new, None])
+            if self.mode not in self.AVAILABLE_MODES:
+                larvae[-1][self.ID_TAR] = self.get_target_wrapper(pos_new)
             selected_corals = np.delete(selected_corals, [id1, id2])
         return self.update_target_wrapper_population(larvae)
 
@@ -160,20 +163,20 @@ class BaseCRO(Optimizer):
         """
         nfe_epoch = 0
         ## Broadcast Spawning Brooding
-        larvae = self.broadcast_spawning_brooding()
-        self._larvae_setting(larvae)
+        larvae = self.broadcast_spawning_brooding__()
+        self.larvae_setting__(larvae)
         nfe_epoch += len(larvae)
 
         ## Asexual Reproduction
         num_duplicate = int(len(self.occupied_idx_list) * self.Fa)
         pop_best = [self.pop[idx] for idx in self.occupied_idx_list]
         pop_best = self.get_sorted_strim_population(pop_best, num_duplicate)
-        self._larvae_setting(pop_best)
+        self.larvae_setting__(pop_best)
 
         ## Depredation
         if np.random.random() < self.dyn_Pd:
             num__depredation__ = int(len(self.occupied_idx_list) * self.Fd)
-            idx_list_sorted = self._sort_occupied_reef()
+            idx_list_sorted = self.sort_occupied_reef__()
             selected_depredator = idx_list_sorted[-num__depredation__:]
             self.occupied_idx_list = np.setdiff1d(self.occupied_idx_list, selected_depredator)
             for idx in selected_depredator:
@@ -193,7 +196,7 @@ class OCRO(BaseCRO):
     Links:
         1. https://dx.doi.org/10.2991/ijcis.d.190930.003
 
-    Hyper-parameters should fine tuned in approximate range to get faster convergence toward the global optimum:
+    Hyper-parameters should fine-tune in approximate range to get faster convergence toward the global optimum:
         + po (float): [0.2, 0.5], the rate between free/occupied at the beginning
         + Fb (float): [0.6, 0.9], BroadcastSpawner/ExistingCorals rate
         + Fa (float): [0.05, 0.3], fraction of corals duplicates its self and tries to settle in a different part of the reef
@@ -264,20 +267,17 @@ class OCRO(BaseCRO):
         self.restart_count = self.validator.check_int("restart_count", restart_count, [2, int(epoch / 2)])
         self.reset_count = 0
 
-    def _local_search(self, pop=None):
+    def local_search__(self, pop=None):
         pop_new = []
         for idx in range(0, len(pop)):
-            temp = np.random.uniform(self.problem.lb, self.problem.ub)
-            pos_new = np.where(np.random.uniform(0, 1, self.problem.n_dims) < 0.5, self.g_best[self.ID_POS], temp)
+            random_pos = np.random.uniform(self.problem.lb, self.problem.ub)
+            condition = np.random.random(self.problem.n_dims) < 0.5
+            pos_new = np.where(condition, self.g_best[self.ID_POS], random_pos)
             pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_new.append([pos_new, None])
+            if self.mode not in self.AVAILABLE_MODES:
+                pop_new[-1][self.ID_TAR] = self.get_target_wrapper(pos_new)
         return self.update_target_wrapper_population(pop_new)
-
-    def _opposition_based_position(self, reef, g_best):
-        pos_new = self.problem.ub + self.problem.lb - g_best[self.ID_POS] + np.random.uniform() * (g_best[self.ID_POS] - reef[self.ID_POS])
-        pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
-        target = self.get_target_wrapper(pos_new)
-        return [pos_new, target]
 
     def evolve(self, epoch):
         """
@@ -288,26 +288,30 @@ class OCRO(BaseCRO):
         """
         nfe_epoch = 0
         ## Broadcast Spawning Brooding
-        larvae = self.broadcast_spawning_brooding()
-        self._larvae_setting(larvae)
+        larvae = self.broadcast_spawning_brooding__()
+        self.larvae_setting__(larvae)
         nfe_epoch += len(larvae)
 
         ## Asexual Reproduction
         num_duplicate = int(len(self.occupied_idx_list) * self.Fa)
         pop_best = [self.pop[idx] for idx in self.occupied_idx_list]
         pop_best = self.get_sorted_strim_population(pop_best, num_duplicate)
-        pop_local_search = self._local_search(pop_best)
-        self._larvae_setting(pop_local_search)
+        pop_local_search = self.local_search__(pop_best)
+        self.larvae_setting__(pop_local_search)
 
         ## Depredation
         if np.random.random() < self.dyn_Pd:
             num__depredation__ = int(len(self.occupied_idx_list) * self.Fd)
-            idx_list_sorted = self._sort_occupied_reef()
+            idx_list_sorted = self.sort_occupied_reef__()
             selected_depredator = idx_list_sorted[-num__depredation__:]
             for idx in selected_depredator:
-                opposite_reef = self._opposition_based_position(self.pop[idx], self.g_best)
-                if self.compare_agent(opposite_reef, self.pop[idx]):
-                    self.pop[idx] = opposite_reef
+                ### Using opposition-based leanring
+                oppo_pos = self.create_opposition_position(self.pop[idx], self.g_best)
+                oppo_pos = self.amend_position(oppo_pos, self.problem.lb, self.problem.ub)
+                oppo_reef = [oppo_pos, self.get_target_wrapper(oppo_pos)]
+                nfe_epoch += 1
+                if self.compare_agent(oppo_reef, self.pop[idx]):
+                    self.pop[idx] = oppo_reef
                 else:
                     self.occupied_idx_list = self.occupied_idx_list[~np.isin(self.occupied_idx_list, [idx])]
                     self.occupied_list[idx] = 0

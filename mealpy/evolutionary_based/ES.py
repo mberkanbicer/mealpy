@@ -13,9 +13,9 @@ class BaseES(Optimizer):
     The original version of: Evolution Strategies (ES)
 
     Links:
-        1. http://www.cleveralgorithms.com/nature-inspired/evolution/evolution_strategies.html
+        1. https://www.cleveralgorithms.com/nature-inspired/evolution/evolution_strategies.html
 
-    Hyper-parameters should fine tuned in approximate range to get faster convergence toward the global optimum:
+    Hyper-parameters should fine-tune in approximate range to get faster convergence toward the global optimum:
         + lamda (float): [0.5, 1.0], Percentage of child agents evolving in the next generation
 
     Examples
@@ -66,19 +66,16 @@ class BaseES(Optimizer):
         self.nfe_per_epoch = self.n_child
         self.sort_flag = True
 
-    def create_solution(self, lb=None, ub=None):
+    def create_solution(self, lb=None, ub=None, pos=None):
         """
-        To get the position, fitness wrapper, target and obj list
-            + A[self.ID_POS]                  --> Return: position
-            + A[self.ID_TAR]                  --> Return: [target, [obj1, obj2, ...]]
-            + A[self.ID_TAR][self.ID_FIT]     --> Return: target
-            + A[self.ID_TAR][self.ID_OBJ]     --> Return: [obj1, obj2, ...]
+        Overriding method in Optimizer class
 
         Returns:
             list: solution with format [position, target, strategy]
         """
-        position = self.generate_position(lb, ub)
-        position = self.amend_position(position, lb, ub)
+        if pos is None:
+            pos = self.generate_position(lb, ub)
+        position = self.amend_position(pos, lb, ub)
         target = self.get_target_wrapper(position)
         strategy = np.random.uniform(0, self.distance)
         return [position, target, strategy]
@@ -98,6 +95,8 @@ class BaseES(Optimizer):
             tau_p = np.sqrt(2.0 * np.sqrt(self.problem.n_dims)) ** -1.0
             strategy = np.exp(tau_p * np.random.normal(0, 1.0, self.problem.n_dims) + tau * np.random.normal(0, 1.0, self.problem.n_dims))
             child.append([pos_new, None, strategy])
+            if self.mode not in self.AVAILABLE_MODES:
+                child[-1][self.ID_TAR] = self.get_target_wrapper(pos_new)
         child = self.update_target_wrapper_population(child)
         self.pop = self.get_sorted_strim_population(child + self.pop, self.pop_size)
 
@@ -107,13 +106,13 @@ class LevyES(BaseES):
     My Levy-flight version of: Evolution Strategies (ES)
 
     Links:
-        1. http://www.cleveralgorithms.com/nature-inspired/evolution/evolution_strategies.html
+        1. https://www.cleveralgorithms.com/nature-inspired/evolution/evolution_strategies.html
 
     Notes
     ~~~~~
     I implement Levy-flight and change the flow of original version.
 
-    Hyper-parameters should fine tuned in approximate range to get faster convergence toward the global optimum:
+    Hyper-parameters should fine-tune in approximate range to get faster convergence toward the global optimum:
         + lamda (float): [0.5, 1.0], Percentage of child agents evolving in the next generation
 
     Examples
@@ -169,17 +168,19 @@ class LevyES(BaseES):
             tau_p = np.sqrt(2.0 * np.sqrt(self.problem.n_dims)) ** -1.0
             strategy = np.exp(tau_p * np.random.normal(0, 1.0, self.problem.n_dims) + tau * np.random.normal(0, 1.0, self.problem.n_dims))
             child.append([pos_new, None, strategy])
+            if self.mode not in self.AVAILABLE_MODES:
+                child[-1][self.ID_TAR] = self.get_target_wrapper(pos_new)
         child = self.update_target_wrapper_population(child)
 
         child_levy = []
         for idx in range(0, self.n_child):
-            levy = self.get_levy_flight_step(multiplier=0.01, case=-1)
-            pos_new = self.pop[idx][self.ID_POS] + np.random.uniform(self.problem.lb, self.problem.ub) * \
-                      levy * (self.pop[idx][self.ID_POS] - self.g_best[self.ID_POS])
+            pos_new = self.pop[idx][self.ID_POS] + self.get_levy_flight_step(multiplier=0.001, size=self.problem.n_dims, case=-1)
             pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             tau = np.sqrt(2.0 * self.problem.n_dims) ** -1.0
             tau_p = np.sqrt(2.0 * np.sqrt(self.problem.n_dims)) ** -1.0
             stdevs = np.array([np.exp(tau_p * np.random.normal(0, 1.0) + tau * np.random.normal(0, 1.0)) for _ in range(self.problem.n_dims)])
             child_levy.append([pos_new, None, stdevs])
+            if self.mode not in self.AVAILABLE_MODES:
+                child_levy[-1][self.ID_TAR] = self.get_target_wrapper(pos_new)
         child_levy = self.update_target_wrapper_population(child_levy)
         self.pop = self.get_sorted_strim_population(child + child_levy + self.pop, self.pop_size)

@@ -22,7 +22,7 @@ class Optimizer:
 
     Notes
     ~~~~~
-    + The solve() is the most important method, trained the model
+    + The function solve() is the most important method, trained the model
     + The parallel (multithreading or multiprocessing) is used in method: create_population(), update_target_wrapper_population()
     + The general format of:
         + population = [agent_1, agent_2, ..., agent_N]
@@ -61,7 +61,7 @@ class Optimizer:
         """
         super(Optimizer, self).__init__()
         self.epoch, self.pop_size, self.solution = None, None, None
-        self.mode, self._print_model = "sequential", ""
+        self.mode, self._print_model = None, ""
         self.pop, self.g_best = None, None
         if kwargs is None: kwargs = {}
         self.__set_keyword_arguments(kwargs)
@@ -79,7 +79,8 @@ class Optimizer:
             self.termination = Termination(termination=kwargs["termination"], log_to=self.problem.log_to, log_file=self.problem.log_file)
             self.termination_flag = True
         self.nfe_per_epoch = self.pop_size
-        self.sort_flag = False
+        self.sort_flag, self.count_terminate = False, None
+        self.AVAILABLE_MODES = ["process", "thread", "swarm"]
 
     def __set_keyword_arguments(self, kwargs):
         for key, value in kwargs.items():
@@ -97,14 +98,24 @@ class Optimizer:
                 self.count_terminate = 0 # self.pop_size  # First out of loop
             self.logger.warning(f"Stopping condition mode: {self.termination.name}, with maximum value is: {self.termination.quantity}")
 
-    def initialization(self):
-        self.pop = self.create_population(self.pop_size)
-        if self.sort_flag:
-            # We sort the population
-            self.pop, self.g_best = self.get_global_best_solution(self.pop)
+    def initialization(self, starting_positions=None):
+        if starting_positions is None:
+            self.pop = self.create_population(self.pop_size)
         else:
-            # We don't sort the population
-            _, self.g_best = self.get_global_best_solution(self.pop)
+            if type(starting_positions) in [list, np.ndarray] and len(starting_positions) == self.pop_size:
+                if isinstance(starting_positions[0], np.ndarray) and len(starting_positions[0]) == self.problem.n_dims:
+                    self.pop = [self.create_solution(self.problem.lb, self.problem.ub, pos) for pos in starting_positions]
+                else:
+                    self.logger.error("Starting positions should be a list of positions or 2D matrix of positions only.")
+                    exit(0)
+            else:
+                self.logger.error("Starting positions should be a list/2D matrix of positions with same length as pop_size hyper-parameter.")
+                exit(0)
+
+    def after_initialization(self):
+        # The initial population is sorted or not depended on algorithm's strategy
+        pop_temp, self.g_best = self.get_global_best_solution(self.pop)
+        if self.sort_flag: self.pop = pop_temp
 
     def get_target_wrapper(self, position):
         """
@@ -120,7 +131,7 @@ class Optimizer:
         fit = np.dot(objs, self.problem.obj_weights)
         return [fit, objs]
 
-    def create_solution(self, lb=None, ub=None):
+    def create_solution(self, lb=None, ub=None, pos=None):
         """
         To get the position, target wrapper [fitness and obj list]
             + A[self.ID_POS]                  --> Return: position
@@ -131,24 +142,53 @@ class Optimizer:
         Args:
             lb: list of lower bound values
             ub: list of upper bound values
+            pos (np.ndarray): the known position. If None is passed, the default function generate_position() will be used
 
         Returns:
             list: wrapper of solution with format [position, [fitness, [obj1, obj2, ...]]]
         """
-        position = self.generate_position(lb, ub)
-        position = self.amend_position(position, lb, ub)
+        if pos is None:
+            pos = self.generate_position(lb, ub)
+        position = self.amend_position(pos, lb, ub)
         target = self.get_target_wrapper(position)
         return [position, target]
 
     def before_evolve(self, epoch):
         pass
 
+    def evolve(self, epoch):
+        pass
+
     def after_evolve(self, epoch):
         pass
 
-    def solve(self, mode='sequential'):
+    def termination_end(self, epoch):
+        finished = False
+        if self.termination_flag:
+            if self.termination.mode == 'TB':
+                if time.perf_counter() - self.count_terminate >= self.termination.quantity:
+                    self.logger.warning(f"Stopping criterion with mode {self.termination.name} occurred. End program!")
+                    finished = True
+            elif self.termination.mode == 'FE':
+                self.count_terminate += self.nfe_per_epoch
+                if self.count_terminate >= self.termination.quantity:
+                    self.logger.warning(f"Stopping criterion with mode {self.termination.name} occurred. End program!")
+                    finished = True
+            elif self.termination.mode == 'MG':
+                if epoch >= self.termination.quantity:
+                    self.logger.warning(f"Stopping criterion with mode {self.termination.name} occurred. End program!")
+                    finished = True
+            else:  # Early Stopping
+                temp = self.count_terminate + self.history.get_global_repeated_times(self.ID_TAR, self.ID_FIT, self.EPSILON)
+                if temp >= self.termination.quantity:
+                    self.logger.warning(f"Stopping criterion with mode {self.termination.name} occurred. End program!")
+                    finished = True
+        return finished
+
+    def solve(self, mode='sequential', starting_positions=None):
         """
         Args:
+            starting_positions: List or 2D matrix (numpy array) of starting positions with length equal pop_size hyper_parameter
             mode (str): 'sequential', 'thread', 'process'.
 
                 * 'sequential': recommended for simple and small task (< 10 seconds for calculating objective)
@@ -160,7 +200,8 @@ class Optimizer:
         """
         self.mode = mode
         self.termination_start()
-        self.initialization()
+        self.initialization(starting_positions)
+        self.after_initialization()
         self.history.save_initial_best(self.g_best)
 
         for epoch in range(0, self.epoch):
@@ -175,38 +216,16 @@ class Optimizer:
             ## Call after evolve function
             self.after_evolve(epoch)
 
-            # update global best position
-            if self.sort_flag:
-                self.pop, self.g_best = self.update_global_best_solution(self.pop)  # We sort the population
-            else:
-                _, self.g_best = self.update_global_best_solution(self.pop)  # We don't sort the population
+            # Update global best position, the population is sorted or not depended on algorithm's strategy
+            pop_temp, self.g_best = self.update_global_best_solution(self.pop)
+            if self.sort_flag: self.pop = pop_temp
+
             time_epoch = time.perf_counter() - time_epoch
             self.track_optimize_step(self.pop, epoch+1, time_epoch)
-            if self.termination_flag:
-                if self.termination.mode == 'TB':
-                    if time.perf_counter() - self.count_terminate >= self.termination.quantity:
-                        self.logger.warning(f"Stopping criterion with mode {self.termination.name} occurred. End program!")
-                        break
-                elif self.termination.mode == 'FE':
-                    self.count_terminate += self.nfe_per_epoch
-                    if self.count_terminate >= self.termination.quantity:
-                        self.logger.warning(f"Stopping criterion with mode {self.termination.name} occurred. End program!")
-                        break
-                elif self.termination.mode == 'MG':
-                    if (epoch+1) >= self.termination.quantity:
-                        self.logger.warning(f"Stopping criterion with mode {self.termination.name} occurred. End program!")
-                        break
-                else:  # Early Stopping
-                    temp = self.count_terminate + self.history.get_global_repeated_times(self.ID_TAR, self.ID_FIT, self.EPSILON)
-                    if temp >= self.termination.quantity:
-                        self.logger.warning(f"Stopping criterion with mode {self.termination.name} occurred. End program!")
-                        break
-
+            if self.termination_end(epoch+1):
+                break
         self.track_optimize_process()
         return self.solution[self.ID_POS], self.solution[self.ID_TAR][self.ID_FIT]
-
-    def evolve(self, epoch):
-        pass
 
     def track_optimize_step(self, population=None, epoch=None, runtime=None):
         """
@@ -222,8 +241,8 @@ class Optimizer:
         if self.problem.save_population:
             self.history.list_population.append(pop)
         self.history.list_epoch_time.append(runtime)
-        self.history.list_global_best_fit.append(self.history.list_global_best[self.ID_TAR][self.ID_FIT])
-        self.history.list_current_best_fit.append(self.history.list_current_best[self.ID_TAR][self.ID_FIT])
+        self.history.list_global_best_fit.append(self.history.list_global_best[-1][self.ID_TAR][self.ID_FIT])
+        self.history.list_current_best_fit.append(self.history.list_current_best[-1][self.ID_TAR][self.ID_FIT])
         # Save the exploration and exploitation data for later usage
         pos_matrix = np.array([agent[self.ID_POS] for agent in pop])
         div = np.mean(np.abs(np.median(pos_matrix, axis=0) - pos_matrix), axis=0)
@@ -292,7 +311,7 @@ class Optimizer:
                 list_results = executor.map(self.get_target_wrapper, pos_list)  # Return result not the future object
                 for idx, target in enumerate(list_results):
                     pop[idx][self.ID_TAR] = target
-        else:
+        elif self.mode == "swarm":
             for idx, pos in enumerate(pos_list):
                 pop[idx][self.ID_TAR] = self.get_target_wrapper(pos)
         return pop
@@ -331,21 +350,21 @@ class Optimizer:
                 return deepcopy(agent2)
             return deepcopy(agent1)
 
-    def compare_agent(self, agent_a: list, agent_b: list):
+    def compare_agent(self, agent_new: list, agent_old: list):
         """
         Args:
-            agent_a (list): Solution a
-            agent_b (list): Solution b
+            agent_new (list): The new solution
+            agent_old (list): The old solution
 
         Returns:
-            boolean: Return True if solution a better than solution b and otherwise
+            boolean: Return True if the new solution is better than the old one and otherwise
         """
         if self.problem.minmax == "min":
-            if agent_a[self.ID_TAR][self.ID_FIT] < agent_b[self.ID_TAR][self.ID_FIT]:
+            if agent_new[self.ID_TAR][self.ID_FIT] < agent_old[self.ID_TAR][self.ID_FIT]:
                 return True
             return False
         else:
-            if agent_a[self.ID_TAR][self.ID_FIT] < agent_b[self.ID_TAR][self.ID_FIT]:
+            if agent_new[self.ID_TAR][self.ID_FIT] < agent_old[self.ID_TAR][self.ID_FIT]:
                 return False
             return True
 
@@ -464,7 +483,7 @@ class Optimizer:
             return [parent[0] for parent in list_parents[-output:]]
         return [parent[0] for parent in list_parents[:output]]
 
-    def get_levy_flight_step(self, beta=1.0, multiplier=0.001, case=0):
+    def get_levy_flight_step(self, beta=1.0, multiplier=0.001, size=None, case=0):
         """
         Get the Levy-flight step size
 
@@ -475,6 +494,7 @@ class Optimizer:
                 * 1-2: large range --> explore
 
             multiplier (float): default = 0.001
+            size (tuple, list): size of levy-flight steps, for example: (3, 2), 5, (4, )
             case (int): Should be one of these value [0, 1, -1].
 
                 * 0: return multiplier * s * np.random.uniform()
@@ -489,16 +509,17 @@ class Optimizer:
         sigma_u = np.power(gamma(1 + beta) * np.sin(np.pi * beta / 2) / (gamma((1 + beta) / 2) * beta * np.power(2, (beta - 1) / 2)), 1 / beta)
         # sigma_v : standard deviation of v
         sigma_v = 1
-        u = np.random.normal(0, sigma_u ** 2)
-        v = np.random.normal(0, sigma_v ** 2)
-        s = u / np.power(abs(v), 1 / beta)
+        size = 1 if size is None else size
+        u = np.random.normal(0, sigma_u ** 2, size)
+        v = np.random.normal(0, sigma_v ** 2, size)
+        s = u / np.power(np.abs(v), 1 / beta)
         if case == 0:
             step = multiplier * s * np.random.uniform()
         elif case == 1:
             step = multiplier * s * np.random.normal(0, 1)
         else:
             step = multiplier * s
-        return step
+        return step[0] if size == 1 else step
 
     def levy_flight(self, epoch=None, position=None, g_best_position=None, step=0.001, case=0):
         """
@@ -522,17 +543,19 @@ class Optimizer:
         sigma_v = 1
         muy = np.random.normal(0, sigma_muy ** 2)
         v = np.random.normal(0, sigma_v ** 2)
-        s = muy / np.power(abs(v), 1 / beta)
-        levy = np.random.uniform(self.problem.lb, self.problem.ub) * step * s * (position - g_best_position)
+        s = muy / np.power(np.abs(v), 1 / beta)
+        levy = step * s * (g_best_position - position)
 
         if case == 0:
             return levy
         elif case == 1:
-            return position + 1.0 / np.sqrt(epoch + 1) * np.sign(np.random.random() - 0.5) * levy
+            return position + levy
         elif case == 2:
-            return position + np.random.normal(0, 1, len(self.problem.lb)) * levy
+            return position + 1.0 / np.sqrt(epoch + 1) * np.sign(np.random.random(self.problem.n_dims) - 0.5) * levy
         elif case == 3:
-            return position + 0.01 * levy
+            return g_best_position + levy
+        else:
+            return g_best_position + 1.0 / np.sqrt(epoch + 1) * levy
 
     ### Survivor Selection
     def greedy_selection_population(self, pop_old=None, pop_new=None):
@@ -560,6 +583,7 @@ class Optimizer:
         Args:
             pop (list): The population
             pop_size (int): The number of population
+            reverse (bool): False (ascending fitness order), and True (descending fitness order)
 
         Returns:
             The sorted population with pop_size size

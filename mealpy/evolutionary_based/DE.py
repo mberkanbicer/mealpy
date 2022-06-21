@@ -17,7 +17,7 @@ class BaseDE(Optimizer):
     Links:
         1. https://doi.org/10.1016/j.swevo.2018.10.006
 
-    Hyper-parameters should fine tuned in approximate range to get faster convergence toward the global optimum:
+    Hyper-parameters should fine-tune in approximate range to get faster convergence toward the global optimum:
         + wf (float): [0.5, 0.95], weighting factor, default = 0.8
         + cr (float): [0.5, 0.95], crossover rate, default = 0.9
         + strategy (int): [0, 5], there are lots of variant version of DE algorithm,
@@ -58,29 +58,29 @@ class BaseDE(Optimizer):
     LSHADE algorithms for global numerical optimization. Swarm and Evolutionary Computation, 50, p.100455.
     """
 
-    def __init__(self, problem, epoch=10000, pop_size=100, wf=0.8, cr=0.9, strategy=0, **kwargs):
+    def __init__(self, problem, epoch=10000, pop_size=100, wf=1.0, cr=0.9, strategy=0, **kwargs):
         """
         Args:
             problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
-            wf (float): weighting factor, default = 0.8
+            wf (float): weighting factor, default = 1.5
             cr (float): crossover rate, default = 0.9
             strategy (int): Different variants of DE, default = 0
         """
         super().__init__(problem, kwargs)
         self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
         self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
-        self.wf = self.validator.check_float("wf", wf, (0, 1.0))
+        self.wf = self.validator.check_float("wf", wf, (0, 3.0))
         self.cr = self.validator.check_float("cr", cr, (0, 1.0))
         self.strategy = self.validator.check_int("strategy", strategy, [0, 5])
 
         self.nfe_per_epoch = self.pop_size
         self.sort_flag = False
 
-
-    def _mutation__(self, current_pos, new_pos):
-        pos_new = np.where(np.random.uniform(0, 1, self.problem.n_dims) < self.cr, current_pos, new_pos)
+    def mutation__(self, current_pos, new_pos):
+        condition = np.random.random(self.problem.n_dims) < self.cr
+        pos_new = np.where(condition, new_pos, current_pos)
         return self.amend_position(pos_new, self.problem.lb, self.problem.ub)
 
     def evolve(self, epoch):
@@ -97,47 +97,64 @@ class BaseDE(Optimizer):
                 idx_list = np.random.choice(list(set(range(0, self.pop_size)) - {idx}), 3, replace=False)
                 pos_new = self.pop[idx_list[0]][self.ID_POS] + self.wf * \
                           (self.pop[idx_list[1]][self.ID_POS] - self.pop[idx_list[2]][self.ID_POS])
-                pos_new = self._mutation__(self.pop[idx][self.ID_POS], pos_new)
+                pos_new = self.mutation__(self.pop[idx][self.ID_POS], pos_new)
                 pop.append([pos_new, None])
+                if self.mode not in self.AVAILABLE_MODES:
+                    target = self.get_target_wrapper(pos_new)
+                    self.pop[idx] = self.get_better_solution([pos_new, target], self.pop[idx])
         elif self.strategy == 1:
             for idx in range(0, self.pop_size):
                 idx_list = np.random.choice(list(set(range(0, self.pop_size)) - {idx}), 2, replace=False)
                 pos_new = self.g_best[self.ID_POS] + self.wf * (self.pop[idx_list[0]][self.ID_POS] - self.pop[idx_list[1]][self.ID_POS])
-                pos_new = self._mutation__(self.pop[idx][self.ID_POS], pos_new)
+                pos_new = self.mutation__(self.pop[idx][self.ID_POS], pos_new)
                 pop.append([pos_new, None])
+                if self.mode not in self.AVAILABLE_MODES:
+                    target = self.get_target_wrapper(pos_new)
+                    self.pop[idx] = self.get_better_solution([pos_new, target], self.pop[idx])
         elif self.strategy == 2:
             for idx in range(0, self.pop_size):
                 idx_list = np.random.choice(list(set(range(0, self.pop_size)) - {idx}), 4, replace=False)
                 pos_new = self.g_best[self.ID_POS] + self.wf * (self.pop[idx_list[0]][self.ID_POS] - self.pop[idx_list[1]][self.ID_POS]) + \
                           self.wf * (self.pop[idx_list[2]][self.ID_POS] - self.pop[idx_list[3]][self.ID_POS])
-                pos_new = self._mutation__(self.pop[idx][self.ID_POS], pos_new)
+                pos_new = self.mutation__(self.pop[idx][self.ID_POS], pos_new)
                 pop.append([pos_new, None])
+                if self.mode not in self.AVAILABLE_MODES:
+                    target = self.get_target_wrapper(pos_new)
+                    self.pop[idx] = self.get_better_solution([pos_new, target], self.pop[idx])
         elif self.strategy == 3:
             for idx in range(0, self.pop_size):
                 idx_list = np.random.choice(list(set(range(0, self.pop_size)) - {idx}), 5, replace=False)
                 pos_new = self.pop[idx_list[0]][self.ID_POS] + self.wf * \
                           (self.pop[idx_list[1]][self.ID_POS] - self.pop[idx_list[2]][self.ID_POS]) + \
                           self.wf * (self.pop[idx_list[3]][self.ID_POS] - self.pop[idx_list[4]][self.ID_POS])
-                pos_new = self._mutation__(self.pop[idx][self.ID_POS], pos_new)
+                pos_new = self.mutation__(self.pop[idx][self.ID_POS], pos_new)
                 pop.append([pos_new, None])
+                if self.mode not in self.AVAILABLE_MODES:
+                    target = self.get_target_wrapper(pos_new)
+                    self.pop[idx] = self.get_better_solution([pos_new, target], self.pop[idx])
         elif self.strategy == 4:
             for idx in range(0, self.pop_size):
                 idx_list = np.random.choice(list(set(range(0, self.pop_size)) - {idx}), 2, replace=False)
                 pos_new = self.pop[idx][self.ID_POS] + self.wf * (self.g_best[self.ID_POS] - self.pop[idx][self.ID_POS]) + \
                           self.wf * (self.pop[idx_list[0]][self.ID_POS] - self.pop[idx_list[1]][self.ID_POS])
-                pos_new = self._mutation__(self.pop[idx][self.ID_POS], pos_new)
+                pos_new = self.mutation__(self.pop[idx][self.ID_POS], pos_new)
                 pop.append([pos_new, None])
+                if self.mode not in self.AVAILABLE_MODES:
+                    target = self.get_target_wrapper(pos_new)
+                    self.pop[idx] = self.get_better_solution([pos_new, target], self.pop[idx])
         else:
             for idx in range(0, self.pop_size):
                 idx_list = np.random.choice(list(set(range(0, self.pop_size)) - {idx}), 3, replace=False)
                 pos_new = self.pop[idx][self.ID_POS] + self.wf * (self.pop[idx_list[0]][self.ID_POS] - self.pop[idx][self.ID_POS]) + \
                           self.wf * (self.pop[idx_list[1]][self.ID_POS] - self.pop[idx_list[2]][self.ID_POS])
-                pos_new = self._mutation__(self.pop[idx][self.ID_POS], pos_new)
+                pos_new = self.mutation__(self.pop[idx][self.ID_POS], pos_new)
                 pop.append([pos_new, None])
-        pop = self.update_target_wrapper_population(pop)
-
-        # create new pop by comparing fitness of corresponding each member in pop and children
-        self.pop = self.greedy_selection_population(self.pop, pop)
+                if self.mode not in self.AVAILABLE_MODES:
+                    target = self.get_target_wrapper(pos_new)
+                    self.pop[idx] = self.get_better_solution([pos_new, target], self.pop[idx])
+        if self.mode in self.AVAILABLE_MODES:
+            pop = self.update_target_wrapper_population(pop)
+            self.pop = self.greedy_selection_population(self.pop, pop)
 
 
 class JADE(Optimizer):
@@ -147,7 +164,7 @@ class JADE(Optimizer):
     Links:
         1. https://doi.org/10.1109/TEVC.2009.2014613
 
-    Hyper-parameters should fine tuned in approximate range to get faster convergence toward the global optimum:
+    Hyper-parameters should fine-tune in approximate range to get faster convergence toward the global optimum:
         + miu_f (float): [0.4, 0.6], initial adaptive f, default = 0.5
         + miu_cr (float): [0.4, 0.6], initial adaptive cr, default = 0.5
         + pt (float): [0.05, 0.2], The percent of top best agents (p in the paper), default = 0.1
@@ -255,13 +272,14 @@ class JADE(Optimizer):
                 if np.any(x_r2[self.ID_POS] - x_r1[self.ID_POS]) and np.any(x_r2[self.ID_POS] - self.pop[idx][self.ID_POS]):
                     break
             x_new = self.pop[idx][self.ID_POS] + f * (x_best[self.ID_POS] - self.pop[idx][self.ID_POS]) + f * (x_r1[self.ID_POS] - x_r2[self.ID_POS])
-            pos_new = np.where(np.random.uniform(0, 1, self.problem.n_dims) < cr, x_new, self.pop[idx][self.ID_POS])
+            pos_new = np.where(np.random.random(self.problem.n_dims) < cr, x_new, self.pop[idx][self.ID_POS])
             j_rand = np.random.randint(0, self.problem.n_dims)
             pos_new[j_rand] = x_new[j_rand]
             pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop.append([pos_new, None])
+            if self.mode not in self.AVAILABLE_MODES:
+                pop[-1][self.ID_TAR] = self.get_target_wrapper(pos_new)
         pop = self.update_target_wrapper_population(pop)
-
         for idx in range(0, self.pop_size):
             if self.compare_agent(pop[idx], self.pop[idx]):
                 self.dyn_pop_archive.append(deepcopy(self.pop[idx]))
@@ -288,7 +306,6 @@ class JADE(Optimizer):
             self.dyn_miu_f = (1 - self.ap) * self.dyn_miu_f + self.ap * 0.5
         else:
             self.dyn_miu_f = (1 - self.ap) * self.dyn_miu_f + self.ap * self.lehmer_mean(np.array(list_f))
-        return pop
 
 
 class SADE(Optimizer):
@@ -373,21 +390,22 @@ class SADE(Optimizer):
             id1, id2, id3 = np.random.choice(list(set(range(0, self.pop_size)) - {idx}), 3, replace=False)
             if np.random.rand() < self.p1:
                 x_new = self.pop[id1][self.ID_POS] + f * (self.pop[id2][self.ID_POS] - self.pop[id3][self.ID_POS])
-                pos_new = np.where(np.random.uniform(0, 1, self.problem.n_dims) < cr, x_new, self.pop[idx][self.ID_POS])
+                pos_new = np.where(np.random.random(self.problem.n_dims) < cr, x_new, self.pop[idx][self.ID_POS])
                 j_rand = np.random.randint(0, self.problem.n_dims)
                 pos_new[j_rand] = x_new[j_rand]
                 pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
-                pop.append([pos_new, None])
                 list_probability.append(True)
             else:
                 x_new = self.pop[idx][self.ID_POS] + f * (self.g_best[self.ID_POS] - self.pop[idx][self.ID_POS]) + \
                         f * (self.pop[id1][self.ID_POS] - self.pop[id2][self.ID_POS])
-                pos_new = np.where(np.random.uniform(0, 1, self.problem.n_dims) < cr, x_new, self.pop[idx][self.ID_POS])
+                pos_new = np.where(np.random.random(self.problem.n_dims) < cr, x_new, self.pop[idx][self.ID_POS])
                 j_rand = np.random.randint(0, self.problem.n_dims)
                 pos_new[j_rand] = x_new[j_rand]
                 pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
-                pop.append([pos_new, None])
                 list_probability.append(False)
+            pop.append([pos_new, None])
+            if self.mode not in self.AVAILABLE_MODES:
+                pop[-1][self.ID_TAR] = self.get_target_wrapper(pos_new)
         pop = self.update_target_wrapper_population(pop)
 
         for idx in range(0, self.pop_size):
@@ -417,12 +435,12 @@ class SADE(Optimizer):
 
 class SHADE(Optimizer):
     """
-    The variant version of: Success-History Adaptation Differential Evolution (SHADE)
+    The original version of: Success-History Adaptation Differential Evolution (SHADE)
 
     Links:
         1. https://doi.org/10.1109/CEC.2013.6557555
 
-    Hyper-parameters should fine tuned in approximate range to get faster convergence toward the global optimum:
+    Hyper-parameters should fine-tune in approximate range to get faster convergence toward the global optimum:
         + miu_f (float): [0.4, 0.6], initial weighting factor, default = 0.5
         + miu_cr (float): [0.4, 0.6], initial cross-over probability, default = 0.5
 
@@ -481,7 +499,7 @@ class SHADE(Optimizer):
         self.k_counter = 0
 
     ### Survivor Selection
-    def weighted_lehmer_mean(self, list_objects, list_weights):
+    def weighted_lehmer_mean__(self, list_objects, list_weights):
         up = list_weights * list_objects ** 2
         down = list_weights * list_objects
         return sum(up) / sum(down)
@@ -528,11 +546,14 @@ class SHADE(Optimizer):
                 if np.any(x_r2[self.ID_POS] - x_r1[self.ID_POS]) and np.any(x_r2[self.ID_POS] - self.pop[idx][self.ID_POS]):
                     break
             x_new = self.pop[idx][self.ID_POS] + f * (x_best[self.ID_POS] - self.pop[idx][self.ID_POS]) + f * (x_r1[self.ID_POS] - x_r2[self.ID_POS])
-            pos_new = np.where(np.random.uniform(0, 1, self.problem.n_dims) < cr, x_new, self.pop[idx][self.ID_POS])
+            condition = np.random.random(self.problem.n_dims) < cr
+            pos_new = np.where(condition, x_new, self.pop[idx][self.ID_POS])
             j_rand = np.random.randint(0, self.problem.n_dims)
             pos_new[j_rand] = x_new[j_rand]
             pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop.append([pos_new, None])
+            if self.mode not in self.AVAILABLE_MODES:
+                pop[-1][self.ID_TAR] = self.get_target_wrapper(pos_new)
         pop = self.update_target_wrapper_population(pop)
 
         for i in range(0, self.pop_size):
@@ -571,7 +592,7 @@ class SHADE(Optimizer):
             else:
                 list_weights = abs(list_fit_new - list_fit_old) / temp
             self.dyn_miu_cr[self.k_counter] = sum(list_weights * np.array(list_cr))
-            self.dyn_miu_f[self.k_counter] = self.weighted_lehmer_mean(np.array(list_f), list_weights)
+            self.dyn_miu_f[self.k_counter] = self.weighted_lehmer_mean__(np.array(list_f), list_weights)
             self.k_counter += 1
             if self.k_counter >= self.pop_size:
                 self.k_counter = 0
@@ -584,7 +605,7 @@ class L_SHADE(Optimizer):
     Links:
         1. https://metahack.org/CEC2014-Tanabe-Fukunaga.pdf
 
-    Hyper-parameters should fine tuned in approximate range to get faster convergence toward the global optimum:
+    Hyper-parameters should fine-tune in approximate range to get faster convergence toward the global optimum:
         + miu_f (float): [0.4, 0.6], initial weighting factor, default = 0.5
         + miu_cr (float): [0.4, 0.6], initial cross-over probability, default = 0.5
 
@@ -645,7 +666,7 @@ class L_SHADE(Optimizer):
         self.n_min = int(self.pop_size / 5)
 
     ### Survivor Selection
-    def weighted_lehmer_mean(self, list_objects, list_weights):
+    def weighted_lehmer_mean__(self, list_objects, list_weights):
         up = sum(list_weights * list_objects ** 2)
         down = sum(list_weights * list_objects)
         return up / down if down != 0 else 0.5
@@ -692,11 +713,13 @@ class L_SHADE(Optimizer):
                 if np.any(x_r2[self.ID_POS] - x_r1[self.ID_POS]) and np.any(x_r2[self.ID_POS] - self.pop[idx][self.ID_POS]):
                     break
             x_new = self.pop[idx][self.ID_POS] + f * (x_best[self.ID_POS] - self.pop[idx][self.ID_POS]) + f * (x_r1[self.ID_POS] - x_r2[self.ID_POS])
-            pos_new = np.where(np.random.uniform(0, 1, self.problem.n_dims) < cr, x_new, self.pop[idx][self.ID_POS])
+            pos_new = np.where(np.random.random(self.problem.n_dims) < cr, x_new, self.pop[idx][self.ID_POS])
             j_rand = np.random.randint(0, self.problem.n_dims)
             pos_new[j_rand] = x_new[j_rand]
             pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop.append([pos_new, None])
+            if self.mode not in self.AVAILABLE_MODES:
+                pop[-1][self.ID_TAR] = self.get_target_wrapper(pos_new)
         pop = self.update_target_wrapper_population(pop)
 
         for i in range(0, self.pop_size):
@@ -732,7 +755,7 @@ class L_SHADE(Optimizer):
             total_fit = sum(np.abs(list_fit_new - list_fit_old))
             list_weights = 0 if total_fit == 0 else np.abs(list_fit_new - list_fit_old) / total_fit
             self.dyn_miu_cr[self.k_counter] = sum(list_weights * np.array(list_cr))
-            self.dyn_miu_f[self.k_counter] = self.weighted_lehmer_mean(np.array(list_f), list_weights)
+            self.dyn_miu_f[self.k_counter] = self.weighted_lehmer_mean__(np.array(list_f), list_weights)
             self.k_counter += 1
             if self.k_counter >= self.dyn_pop_size:
                 self.k_counter = 0
@@ -748,7 +771,7 @@ class SAP_DE(Optimizer):
     Links:
         1. https://doi.org/10.1007/s00500-005-0537-1
 
-    Hyper-parameters should fine tuned in approximate range to get faster convergence toward the global optimum:
+    Hyper-parameters should fine-tune in approximate range to get faster convergence toward the global optimum:
         + branch (str): ["ABS" or "REL"], gaussian (absolute) or uniform (relative) method
 
     Examples
@@ -798,19 +821,16 @@ class SAP_DE(Optimizer):
         self.nfe_per_epoch = self.pop_size
         self.sort_flag = False
 
-    def create_solution(self, lb=None, ub=None):
+    def create_solution(self, lb=None, ub=None, pos=None):
         """
-        To get the position, fitness wrapper, target and obj list
-            + A[self.ID_POS]                  --> Return: position
-            + A[self.ID_TAR]                  --> Return: [target, [obj1, obj2, ...]]
-            + A[self.ID_TAR][self.ID_FIT]     --> Return: target
-            + A[self.ID_TAR][self.ID_OBJ]     --> Return: [obj1, obj2, ...]
+        Overriding method in Optimizer class
 
         Returns:
             list: solution with format [position, target, crossover_rate, mutation_rate, pop_size]
         """
-        position = self.generate_position(lb, ub)
-        position = self.amend_position(position, lb, ub)
+        if pos is None:
+            pos = self.generate_position(lb, ub)
+        position = self.amend_position(pos, lb, ub)
         target = self.get_target_wrapper(position)
         crossover_rate = np.random.uniform(0, 1)
         mutation_rate = np.random.uniform(0, 1)
@@ -835,12 +855,13 @@ class SAP_DE(Optimizer):
         Args:
             epoch (int): The current iteration
         """
+        nfe_epoch = 0
         pop = []
         for idx in range(0, self.pop_size):
             # Choose 3 random element and different to idx
             idxs = np.random.choice(list(set(range(0, self.pop_size)) - {idx}), 3, replace=False)
             j = np.random.randint(0, self.pop_size)
-            self.F = np.random.uniform(0, 1)
+            self.F = np.random.normal(0, 1)
 
             ## Crossover
             if np.random.uniform(0, 1) < self.pop[idx][self.ID_CR] or idx == j:
@@ -855,6 +876,8 @@ class SAP_DE(Optimizer):
                 cr_new = self.edit_to_range(cr_new, 0, 1, np.random.random)
                 mr_new = self.edit_to_range(mr_new, 0, 1, np.random.random)
                 pop.append([pos_new, None, cr_new, mr_new, ps_new])
+                if self.mode not in self.AVAILABLE_MODES:
+                    pop[-1][self.ID_TAR] = self.get_target_wrapper(pos_new)
             else:
                 pop.append(deepcopy(self.pop[idx]))
             ## Mutation
@@ -868,7 +891,10 @@ class SAP_DE(Optimizer):
                     ps_new = self.pop[idx][self.ID_PS] + np.random.normal(0, self.pop[idxs[0]][self.ID_MR])
                 pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
                 pop.append([pos_new, None, cr_new, mr_new, ps_new])
+                if self.mode not in self.AVAILABLE_MODES:
+                    pop[-1][self.ID_TAR] = self.get_target_wrapper(pos_new)
         pop = self.update_target_wrapper_population(pop)
+        nfe_epoch += len(pop)
 
         # Calculate new population size
         total = sum([pop[i][self.ID_PS] for i in range(0, self.pop_size)])
@@ -888,3 +914,4 @@ class SAP_DE(Optimizer):
             pop_sorted = self.get_sorted_strim_population(pop)
             self.pop = pop + pop_sorted[:m_new - self.pop_size]
         self.pop_size = len(self.pop)
+        self.nfe_per_epoch = nfe_epoch

@@ -17,7 +17,7 @@ class OriginalHC(Optimizer):
     + The number of neighbour solutions are equal to user defined
     + The step size to calculate neighbour is randomized
 
-    Hyper-parameters should fine tuned in approximate range to get faster convergence toward the global optimum:
+    Hyper-parameters should fine-tune in approximate range to get faster convergence toward the global optimum:
         + neighbour_size (int): [pop_size/2, pop_size], fixed parameter, sensitive exploitation parameter, Default: 50
 
     Examples
@@ -73,14 +73,17 @@ class OriginalHC(Optimizer):
         self.nfe_per_epoch = self.neighbour_size
         step_size = np.mean(self.problem.ub - self.problem.lb) * np.exp(-2 * (epoch + 1) / self.epoch)
         pop_neighbours = []
-        for i in range(0, self.neighbour_size):
+        for idx in range(0, self.neighbour_size):
             pos_new = self.g_best[self.ID_POS] + np.random.normal(0, 1, self.problem.n_dims) * step_size
             pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
             pop_neighbours.append([pos_new, None])
-        self.pop = self.update_target_wrapper_population(pop_neighbours)
+            if self.mode not in self.AVAILABLE_MODES:
+                pop_neighbours[-1][self.ID_TAR] = self.get_target_wrapper(pos_new)
+        pop_neighbours = self.update_target_wrapper_population(pop_neighbours)
+        self.pop = pop_neighbours
 
 
-class BaseHC(OriginalHC):
+class BaseHC(Optimizer):
     """
     My changed version of: Swarm-based Hill Climbing (S-HC)
 
@@ -93,8 +96,8 @@ class BaseHC(OriginalHC):
         + Imagination: exploration when far from global best, and exploitation when near global best
     + Who on top of mountain first will be the winner. (global optimal)
 
-    Hyper-parameters should fine tuned in approximate range to get faster convergence toward the global optimum:
-        + neighbour_size (int): [pop_size/2, pop_size], fixed parameter, sensitive exploitation parameter, Default: 50
+    Hyper-parameters should fine-tune in approximate range to get faster convergence toward the global optimum:
+        + neighbour_size (int): [2, pop_size/2], fixed parameter, sensitive exploitation parameter, Default: 10
 
     Examples
     ~~~~~~~~
@@ -119,16 +122,19 @@ class BaseHC(OriginalHC):
     >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
     """
 
-    def __init__(self, problem, epoch=10000, pop_size=100, neighbour_size=50, **kwargs):
+    def __init__(self, problem, epoch=10000, pop_size=100, neighbour_size=10, **kwargs):
         """
         Args:
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
-            neighbour_size (int): fixed parameter, sensitive exploitation parameter, Default: 50
+            neighbour_size (int): fixed parameter, sensitive exploitation parameter, Default: 10
         """
-        super().__init__(problem, epoch, pop_size, neighbour_size, **kwargs)
+        super().__init__(problem, kwargs)
+        self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
+        self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
+        self.neighbour_size = self.validator.check_int("neighbour_size", neighbour_size, [2, int(self.pop_size/2)])
         self.nfe_per_epoch = self.pop_size
-        self.sort_flag = True
+        self.sort_flag = False
 
     def evolve(self, epoch):
         """
@@ -139,6 +145,7 @@ class BaseHC(OriginalHC):
         ranks = ranks / sum(ranks)
         step_size = np.mean(self.problem.ub - self.problem.lb) * np.exp(-2 * (epoch + 1) / self.epoch)
 
+        pop = []
         for idx in range(0, self.pop_size):
             ss = step_size * ranks[idx]
             pop_neighbours = []
@@ -146,7 +153,12 @@ class BaseHC(OriginalHC):
                 pos_new = self.pop[idx][self.ID_POS] + np.random.normal(0, 1, self.problem.n_dims) * ss
                 pos_new = self.amend_position(pos_new, self.problem.lb, self.problem.ub)
                 pop_neighbours.append([pos_new, None])
+                if self.mode not in self.AVAILABLE_MODES:
+                    pop_neighbours[-1][self.ID_TAR] = self.get_target_wrapper(pos_new)
             pop_neighbours = self.update_target_wrapper_population(pop_neighbours)
             _, agent = self.get_global_best_solution(pop_neighbours)
-            self.pop[idx] = agent
-
+            pop.append(agent)
+            if self.mode not in self.AVAILABLE_MODES:
+                self.pop[idx] = self.get_better_solution(agent, self.pop[idx])
+        if self.mode in self.AVAILABLE_MODES:
+            self.pop = self.greedy_selection_population(self.pop, pop)

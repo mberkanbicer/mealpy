@@ -15,7 +15,7 @@ class OriginalCA(Optimizer):
     Links:
         1. https://github.com/clever-algorithms/CleverAlgorithms
 
-    Hyper-parameters should fine tuned in approximate range to get faster convergence toward the global optimum:
+    Hyper-parameters should fine-tune in approximate range to get faster convergence toward the global optimum:
         + accepted_rate (float): [0.1, 0.5], probability of accepted rate, default: 0.15
 
     Examples
@@ -69,13 +69,13 @@ class OriginalCA(Optimizer):
         self.dyn_accepted_num = int(self.accepted_rate * self.pop_size)
         # update situational knowledge (g_best here is a element inside belief space)
 
-    def create_faithful(self, lb, ub):
+    def create_faithful__(self, lb, ub):
         position = self.generate_position(lb, ub)
         position = self.amend_position(position, lb, ub)
         target = self.get_target_wrapper(position)
         return [position, target]
 
-    def update_belief_space(self, belief_space, pop_accepted):
+    def update_belief_space__(self, belief_space, pop_accepted):
         pos_list = np.array([solution[self.ID_POS] for solution in pop_accepted])
         belief_space["lb"] = np.min(pos_list, axis=0)
         belief_space["ub"] = np.max(pos_list, axis=0)
@@ -89,7 +89,7 @@ class OriginalCA(Optimizer):
             epoch (int): The current iteration
         """
         # create next generation
-        pop_child = [self.create_faithful(self.dyn_belief_space["lb"], self.dyn_belief_space["ub"]) for _ in range(0, self.pop_size)]
+        pop_child = [self.create_faithful__(self.dyn_belief_space["lb"], self.dyn_belief_space["ub"]) for _ in range(0, self.pop_size)]
 
         # select next generation
         pop_new = []
@@ -97,14 +97,11 @@ class OriginalCA(Optimizer):
         size_new = len(pop_full)
         for _ in range(0, self.pop_size):
             id1, id2 = np.random.choice(list(range(0, size_new)), 2, replace=False)
-            if self.compare_agent(pop_full[id1], pop_full[id2]):
-                pop_new.append(pop_full[id1])
-            else:
-                pop_new.append(pop_full[id2])
+            pop_new.append(self.get_better_solution(pop_full[id1], pop_full[id2]))
         self.pop = self.get_sorted_strim_population(pop_new)
 
         # Get accepted faithful
         accepted = self.pop[:self.dyn_accepted_num]
 
         # Update belief_space
-        self.dyn_belief_space = self.update_belief_space(self.dyn_belief_space, accepted)
+        self.dyn_belief_space = self.update_belief_space__(self.dyn_belief_space, accepted)
