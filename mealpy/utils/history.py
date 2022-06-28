@@ -77,7 +77,7 @@ class History:
         self.list_epoch_time = []  # List of runtime for each generation
         self.list_global_best_fit = []  # List of global best fitness found so far in all previous generations
         self.list_current_best_fit = []  # List of current best fitness in each previous generations
-        self.list_population = []  # List of population in each generations
+        self.list_population = []  # List of population in each generation
         self.list_diversity = []  # List of diversity of swarm in all generations
         self.list_exploitation = []  # List of exploitation percentages for all generations
         self.list_exploration = []  # List of exploration percentages for all generations
@@ -90,7 +90,7 @@ class History:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    def save_initial_best(self, best_agent):
+    def store_initial_best(self, best_agent):
         self.list_global_best = [deepcopy(best_agent)]
         self.list_current_best = [deepcopy(best_agent)]
 
@@ -104,23 +104,23 @@ class History:
                 count = 0
         return count
 
-    def save_global_best_fitness_chart(self, title='Global Best Fitness', color='b', x_label="#Iteration", y_label="Function Value",
-                                       filename="global-best-fitness-chart", verbose=True):
+    def save_global_best_fitness_chart(self, title='Global Best Fitness', legend=None, linestyle='-', color='b', x_label="#Iteration",
+                                       y_label="Function Value", filename="global-best-fitness-chart", exts=(".png", ".pdf"), verbose=True):
         # Draw global best fitness found so far in previous generations
-        export_convergence_chart(self.list_global_best_fit, title=title, color=color, x_label=x_label,
-                                 y_label=y_label, filename=filename, verbose=verbose)
+        export_convergence_chart(data=self.list_global_best_fit, title=title, legend=legend, linestyle=linestyle,
+                                 color=color, x_label=x_label, y_label=y_label, filename=filename, exts=exts, verbose=verbose)
 
-    def save_local_best_fitness_chart(self, title='Local Best Fitness', color='b', x_label="#Iteration", y_label="Function Value",
-                                      filename="local-best-fitness-chart", verbose=True):
+    def save_local_best_fitness_chart(self, title='Local Best Fitness', legend=None, linestyle='-', color='b', x_label="#Iteration",
+                                      y_label="Function Value", filename="local-best-fitness-chart", exts=(".png", ".pdf"), verbose=True):
         # Draw current best fitness in each previous generation
-        export_convergence_chart(self.list_current_best_fit, title=title, color=color, x_label=x_label,
-                                 y_label=y_label, filename=filename, verbose=verbose)
+        export_convergence_chart(self.list_current_best_fit, title=title, legend=legend, linestyle=linestyle, color=color,
+                                 x_label=x_label, y_label=y_label, filename=filename, exts=exts, verbose=verbose)
 
-    def save_runtime_chart(self, title='Runtime chart', color='b', x_label="#Iteration", y_label='Second',
-                           filename="runtime-chart", verbose=True):
+    def save_runtime_chart(self, title='Runtime chart', legend=None, linestyle='-', color='b', x_label="#Iteration",
+                           y_label='Second', filename="runtime-chart", exts=(".png", ".pdf"), verbose=True):
         # Draw runtime for each generation
-        export_convergence_chart(self.list_epoch_time, title=title, color=color, x_label=x_label,
-                                 y_label=y_label, filename=filename, verbose=verbose)
+        export_convergence_chart(self.list_epoch_time, title=title, legend=legend, linestyle=linestyle, color=color,
+                                 x_label=x_label, y_label=y_label, filename=filename, exts=exts, verbose=verbose)
 
     ## The paper: On the exploration and exploitation in popular swarm-based metaheuristic algorithms
     def save_exploration_exploitation_chart(self, title="Exploration vs Exploitation Percentages", list_colors=('blue', 'orange'),
@@ -130,7 +130,7 @@ class History:
         export_explore_exploit_chart(data=[self.list_exploration, self.list_exploitation], title=title,
                                      list_colors=list_colors, filename=filename, verbose=verbose)
 
-    def save_diversity_chart(self, title='Diversity Measurement Chart', algorithm_name='GA',
+    def save_diversity_chart(self, title='Diversity Measurement Chart', algorithm_name='Algorithm',
                              filename="diversity-chart", verbose=True):
         # This diversity chart should draws for multiple algorithms for a single fitness function at the same time
         # to compare the diversity spreading
@@ -141,23 +141,23 @@ class History:
     ## thus we also want to draw objective charts to understand the convergence
     ## Need a little bit more pre-processing
 
-    def save_global_objectives_chart(self, title='Global Objectives Chart', x_label="#Iteration", y_label="Function Value",
+    def save_global_objectives_chart(self, title='Global Objectives Chart', x_label="#Iteration", y_labels=None,
                                      filename="global-objectives-chart", verbose=True):
         # 2D array / matrix 2D
         global_obj_list = np.array([agent[1][-1] for agent in self.list_global_best])
         # Make each obj_list as a element in array for drawing
         global_obj_list = [global_obj_list[:, idx] for idx in range(0, len(global_obj_list[0]))]
-        export_objectives_chart(global_obj_list, title=title, x_label=x_label, y_label=y_label, filename=filename, verbose=verbose)
+        export_objectives_chart(global_obj_list, title=title, x_label=x_label, y_labels=y_labels, filename=filename, verbose=verbose)
 
-    def save_local_objectives_chart(self, title='Local Objectives Chart', x_label="#Iteration", y_label="Objective Function Value",
+    def save_local_objectives_chart(self, title='Local Objectives Chart', x_label="#Iteration", y_labels=None,
                                     filename="local-objectives-chart", verbose=True):
         current_obj_list = np.array([agent[1][-1] for agent in self.list_current_best])
         # Make each obj_list as a element in array for drawing
         current_obj_list = [current_obj_list[:, idx] for idx in range(0, len(current_obj_list[0]))]
-        export_objectives_chart(current_obj_list, title=title, x_label=x_label, y_label=y_label,
+        export_objectives_chart(current_obj_list, title=title, x_label=x_label, y_labels=y_labels,
                                 filename=filename, verbose=verbose)
 
-    def save_trajectory_chart(self, title="Trajectory of some first agents after generations",
+    def save_trajectory_chart(self, title="Trajectory of some agents",
                               list_agent_idx=(1, 2, 3), selected_dimensions=(1, 2),
                               filename="trajectory-chart", verbose=True):
         if len(self.list_population) < 2:
@@ -195,7 +195,7 @@ class History:
             for idx, id_agent in enumerate(list_agent_idx):
                 x = [pop[id_agent - 1][0][selected_dimensions[0] - 1] for pop in self.list_population]
                 pos_list.append(x)
-                list_legends.append(f"Agent {id_agent}.")
+                list_legends.append(f"Agent {id_agent}")
             export_trajectory_chart(pos_list, n_dimensions=n_dim, title=title, list_legends=list_legends,
                                     y_label=y_label, filename=filename, verbose=verbose)
         elif n_dim == 2:
@@ -207,6 +207,6 @@ class History:
                     x = [pop[id_agent - 1][0][id_dim - 1] for pop in self.list_population]
                     pos_temp.append(x)
                 pos_list.append(pos_temp)
-                list_legends.append(f"Agent {id_agent}.")
+                list_legends.append(f"Agent {id_agent}")
             export_trajectory_chart(pos_list, n_dimensions=n_dim, title=title, list_legends=list_legends, x_label=x_label,
                                     y_label=y_label, filename=filename, verbose=verbose)
