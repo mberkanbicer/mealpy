@@ -8,8 +8,7 @@ import concurrent.futures as parallel
 from opfunu.cec_basic import cec2014_nobias
 from pandas import DataFrame
 from mealpy.evolutionary_based.DE import BaseDE
-from os import getcwd, path, makedirs
-
+import os
 
 model_name = "DE"
 N_TRIALS = 5
@@ -24,10 +23,10 @@ func_names = ["F1", "F2", "F3"]
 
 PATH_ERROR = "history/error/" + model_name + "/"
 PATH_BEST_FIT = "history/best_fit/"
-check_dir1 = f"{getcwd()}/{PATH_ERROR}"
-check_dir2 = f"{getcwd()}/{PATH_BEST_FIT}"
-if not path.exists(check_dir1): makedirs(check_dir1)
-if not path.exists(check_dir2): makedirs(check_dir2)
+check_dir1 = f"{os.getcwd()}/{PATH_ERROR}"
+check_dir2 = f"{os.getcwd()}/{PATH_BEST_FIT}"
+if not os.path.exists(check_dir1): os.makedirs(check_dir1)
+if not os.path.exists(check_dir2): os.makedirs(check_dir2)
 
 
 def find_minimum(function_name):
@@ -46,9 +45,10 @@ def find_minimum(function_name):
             "ub": UB,
             "minmax": "min",
             "log_to": "console",
+            "name": function_name
         }
-        model = BaseDE(problem, epoch=epoch, pop_size=pop_size, wf=wf, cr=cr, name=model_name, fit_name=function_name)
-        _, best_fitness = model.solve()
+        model = BaseDE(epoch=epoch, pop_size=pop_size, wf=wf, cr=cr, name=model_name)
+        _, best_fitness = model.solve(problem)
 
         temp = f"trial_{id_trial}"
         error_full[temp] = model.history.list_global_best_fit

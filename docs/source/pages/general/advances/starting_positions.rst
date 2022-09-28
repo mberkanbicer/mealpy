@@ -25,11 +25,6 @@ Not recommended to use this utility. But in case you need this:
 		"ub": [6.35, ] * 6,
 		"minmax": "min",
 		"log_to": "console",
-		"save_population": False,
-	}
-	term_dict1 = {
-	   "mode": "FE",
-	   "quantity": 5000    # 100000 number of function evaluation
 	}
 
 	## This is an example I use to create starting positions
@@ -38,16 +33,16 @@ Not recommended to use this utility. But in case you need this:
 		return np.ones((pop_size, n_dims)) * num + np.random.uniform(-1, 1)
 
 	## Define the model
-	model = TLO.BaseTLO(fm_problem, epoch=100, pop_size=50, termination=term_dict1)
+	model = TLO.BaseTLO(epoch=100, pop_size=50)
 
 	## Input your starting positions here
 	list_pos = create_starting_positions(6, 50, 2)
-	best_position, best_fitness = model.solve(None, starting_positions=list_pos)        ## Remember the keyword: starting_positions
+	best_position, best_fitness = model.solve(fm_problem, starting_positions=list_pos)        ## Remember the keyword: starting_positions
 	print(f"Best solution: {model.solution}, Best fitness: {best_fitness}")
 
 	## Training with other starting positions
 	list_pos2 = create_starting_positions(6, 50, -1)
-	best_position, best_fitness = model.solve(None, starting_positions=list_pos2)
+	best_position, best_fitness = model.solve(fm_problem, starting_positions=list_pos2)
 	print(f"Best solution: {model.solution}, Best fitness: {best_fitness}")
 
 

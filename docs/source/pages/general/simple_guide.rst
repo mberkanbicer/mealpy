@@ -1,6 +1,6 @@
-==================
-Guide to use model
-==================
+============
+Simple Guide
+============
 
 In this phase, the main task is to find out the global optimal - in this project, we call it named *model* for simple. We designed the classical as well as
 the state-of-the-art population-based meta-heuristics models: `Evolutionary-based`_, `Swarm-based`_, `Physics-based`_, `Human-based`_, `Biology-based`_,
@@ -23,18 +23,25 @@ Installation
 
 **User Installation**
 
-- Install the [current PyPI release](https://pypi.python.org/pypi/mealpy):
+Install the [current PyPI release](https://pypi.python.org/pypi/mealpy):
 
 ::
 
-   $ pip install mealpy==2.4.2
+   $ pip install mealpy==2.5.0
 
-- Or install the development version from GitHub:
+Or install the development version from GitHub:
 
 ::
 
    $ pip install git+https://github.com/thieu1995/mealpy
 
+
+Check the version of MEALPY:
+
+::
+
+   $ import mealpy
+   $ mealpy.__version__
 
 ----------------------
 Getting started in 30s
@@ -59,12 +66,10 @@ Getting started in 30s
 	    "lb": [-100, ] * 30,
 	    "ub": [100, ] * 30,
 	    "minmax": "min",
-	    "log_to": "file",
-	    "log_file": "result.log"
 	}
 
-	ga_model = GA.BaseGA(problem_dict, epoch=100, pop_size=50, pc=0.85, pm=0.1)
-	best_position, best_fitness_value = ga_model.solve()
+	ga_model = GA.BaseGA(epoch=100, pop_size=50, pc=0.85, pm=0.1)
+	best_position, best_fitness_value = ga_model.solve(problem_dict)
 
 	print(best_position)
 	print(best_fitness_value)
@@ -101,64 +106,16 @@ numpy vector (the solution) and output is the single objective value or list of 
 	def fitness_normal(solution=None):
 		return np.sqrt(solution**2)         # Single value
 
-
-	## This is how you design multi-objective function
-	#### Link: https://en.wikipedia.org/wiki/Test_functions_for_optimization
-	def fitness_multi(solution):
-	    def booth(x, y):
-	        return (x + 2*y - 7)**2 + (2*x + y - 5)**2
-	    def bukin(x, y):
-	        return 100 * np.sqrt(np.abs(y - 0.01 * x**2)) + 0.01 * np.abs(x + 10)
-	    def matyas(x, y):
-	        return 0.26 * (x**2 + y**2) - 0.48 * x * y
-	    return [booth(solution[0], solution[1]), bukin(solution[0], solution[1]), matyas(solution[0], solution[1])]
-
-
-	## This is how you design Constrained Benchmark Function (G01)
-	#### Link: https://onlinelibrary.wiley.com/doi/pdf/10.1002/9781119136507.app2
-	def fitness_constrained(solution):
-		def g1(x):
-	        return 2 * x[0] + 2 * x[1] + x[9] + x[10] - 10
-	    def g2(x):
-	        return 2 * x[0] + 2 * x[2] + x[9] + x[10] - 10
-	    def g3(x):
-	        return 2 * x[1] + 2 * x[2] + x[10] + x[11] - 10
-	    def g4(x):
-	        return -8 * x[0] + x[9]
-	    def g5(x):
-	        return -8 * x[1] + x[10]
-	    def g6(x):
-	        return -8 * x[2] + x[11]
-	    def g7(x):
-	        return -2 * x[3] - x[4] + x[9]
-	    def g8(x):
-	        return -2 * x[5] - x[6] + x[10]
-	    def g9(x):
-	        return -2 * x[7] - x[8] + x[11]
-
-	    def violate(value):
-	        return 0 if value <= 0 else value
-
-	    fx = 5 * np.sum(solution[:4]) - 5 * np.sum(solution[:4] ** 2) - np.sum(solution[4:13])
-
-	    ## Increase the punishment for g1 and g4 to boost the algorithm (You can choice any constraint instead of g1 and g4)
-	    fx += violate(g1(solution)) ** 2 + violate(g2(solution)) + violate(g3(solution)) + \
-	        2 * violate(g4(solution)) + violate(g5(solution)) + violate(g6(solution)) + \
-	        violate(g7(solution)) + violate(g8(solution)) + violate(g9(solution))
-	    return fx
-
 -------------------
 Problem Preparation
 -------------------
 
-You will need to define a problem dictionary with must has keywords ("fit_func", "lb", "ub", "minmax"). For special case, when you are trying to
-solve **multiple objective functions**, you need another keyword **"obj_weights"**:
+You will need to define a problem dictionary with must has keywords ("fit_func", "lb", "ub", "minmax").
 
 	* fit_func: Your fitness function
 	* lb: Lower bound of variables, it should be list of values
 	* ub: Upper bound of variables, it should be list of values
 	* minmax: The problem you are trying to solve is minimum or maximum, value can be "min" or "max"
-	* obj_weights: list weights for all your objectives (Optional, default = [1, 1, ...1])
 
 
 .. code-block:: python
@@ -170,24 +127,6 @@ solve **multiple objective functions**, you need another keyword **"obj_weights"
 	    "ub": [100, ] * 30,
 	    "minmax": "min",
 	}
-
-	## Design a problem dictionary for multiple objective functions above
-	problem_multi = {
-	    "fit_func": fitness_multi,
-	    "lb": [-10, -10],
-	    "ub": [10, 10],
-	    "minmax": "min",
-	    "obj_weights": [0.4, 0.1, 0.5]               # Define it or default value will be [1, 1, 1]
-	}
-
-	## Design a problem dictionary for constrained objective function above
-	problem_constrained = {
-	  "fit_func": fitness_constrained,
-	  "lb": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-	  "ub": [1, 1, 1, 1, 1, 1, 1, 1, 1, 100, 100, 100, 1],
-	  "minmax": "min",
-	}
-
 
 --------
 Training
@@ -208,20 +147,32 @@ Start learning by call function **solve()**. There are 4 different training mode
 	from mealpy.evolutionary_based import GA
 	from mealpy.swarm_based import PSO
 
-	sma_model = SMA.BaseSMA(problem_normal, epoch=100, pop_size=50, pr=0.03)
-	best_position, best_fitness_value = sma_model.solve()   # default is: single
+	sma_model = SMA.BaseSMA(epoch=100, pop_size=50, pr=0.03)
+	best_position, best_fitness_value = sma_model.solve(problem_normal)   # default is: single
 
-	sma_model = SMA.BaseSMA(problem_normal, epoch=100, pop_size=50, pr=0.03)
-	best_position, best_fitness_value = sma_model.solve(mode="single")
+	sma_model = SMA.BaseSMA(epoch=100, pop_size=50, pr=0.03)
+	best_position, best_fitness_value = sma_model.solve(problem_normal, mode="single")
 
-	sma_model = SMA.BaseSMA(problem_normal, epoch=100, pop_size=50, pr=0.03)
-	best_position, best_fitness_value = sma_model.solve(mode="swarm")
+	sma_model = SMA.BaseSMA(epoch=100, pop_size=50, pr=0.03)
+	best_position, best_fitness_value = sma_model.solve(problem_normal, mode="swarm")
 
-	ga_model = GA.BaseGA(problem_multi, epoch=1000, pop_size=100, pc=0.9, pm=0.05)
-	best_position, best_fitness_value = ga_model.solve(mode="thread")
+	ga_model = GA.BaseGA(epoch=1000, pop_size=100, pc=0.9, pm=0.05)
+	best_position, best_fitness_value = ga_model.solve(problem_multi, mode="thread")
 
-	pso_model = PSO.BasePSO(problem_constrained, epoch=500, pop_size=80, c1=2.0, c2=1.8, w_min=0.3, w_max=0.8)
-	best_position, best_fitness_value = pso_model.solve(mode="process")
+	pso_model = PSO.OriginalPSO(epoch=500, pop_size=80, c1=2.0, c2=1.8, w_min=0.3, w_max=0.8)
+	best_position, best_fitness_value = pso_model.solve(problem_constrained, mode="process")
+
+
+
+You can set the number of workers when using "Parallel" training.
+
+.. code-block:: python
+
+	from mealpy.bio_based import SMA
+
+	sma_model = SMA.BaseSMA(epoch=100, pop_size=50, pr=0.03)
+	best_position, best_fitness_value = sma_model.solve(problem_normal, mode="thread", n_workers=8)
+	# Using 8 threads to solve this problem
 
 
 The returned results are 2 values :
@@ -229,19 +180,6 @@ The returned results are 2 values :
 - best_position: the global best position it found on training process
 - best_fitness_value: the global best fitness value
 
-
---------
-Advances
---------
-
-.. include:: advances/lower_upper_bound.rst
-.. include:: advances/termination.rst
-.. include:: advances/problem_preparation.rst
-.. include:: advances/model_definition.rst
-.. include:: advances/more_on_fitness_function.rst
-.. include:: advances/starting_positions.rst
-.. include:: advances/agent_history.rst
-.. include:: advances/import_all_models.rst
 
 .. toctree::
    :maxdepth: 4

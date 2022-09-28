@@ -34,8 +34,8 @@ def test_BaseEOA_results(problem):
     alpha = 0.98
     beta = 0.9
     gamma = 0.9
-    model = EOA.BaseEOA(problem, epoch, pop_size, p_c, p_m, n_best, alpha, beta, gamma )
-    best_position, best_fitness = model.solve()
+    model = EOA.OriginalEOA(epoch, pop_size, p_c, p_m, n_best, alpha, beta, gamma )
+    best_position, best_fitness = model.solve(problem)
     assert isinstance(model, Optimizer)
     assert isinstance(best_position, np.ndarray)
     assert len(best_position) == len(problem["lb"])
@@ -51,12 +51,12 @@ def test_BaseEOA_results(problem):
                              (problem, 0, 0),
                              (problem, float("inf"), 0),
                          ])
-def test_epoch_EOA(problem, epoch, system_code):
+def test_epoch_EOA(epoch, system_code):
     pop_size = 50
-    algorithms = [EOA.BaseEOA]
+    algorithms = [EOA.OriginalEOA]
     for algorithm in algorithms:
         with pytest.raises(SystemExit) as e:
-            model = algorithm(problem, epoch, pop_size)
+            model = algorithm(epoch, pop_size)
         assert e.type == SystemExit
         assert e.value.code == system_code
 
@@ -73,10 +73,10 @@ def test_epoch_EOA(problem, epoch, system_code):
                          ])
 def test_pop_size_EOA(problem, pop_size, system_code):
     epoch = 10
-    algorithms = [EOA.BaseEOA]
+    algorithms = [EOA.OriginalEOA]
     for algorithm in algorithms:
         with pytest.raises(SystemExit) as e:
-            model = algorithm(problem, epoch, pop_size)
+            model = algorithm(epoch, pop_size)
         assert e.type == SystemExit
         assert e.value.code == system_code
 
@@ -94,7 +94,7 @@ def test_pop_size_EOA(problem, pop_size, system_code):
                              (problem, -0.01, 0),
                          ])
 def test_p_c_EOA(problem, p_c, system_code):
-    algorithms = [EOA.BaseEOA]
+    algorithms = [EOA.OriginalEOA]
     for algorithm in algorithms:
         with pytest.raises(SystemExit) as e:
             model = algorithm(problem, 10, 50, p_c=p_c)
@@ -115,7 +115,7 @@ def test_p_c_EOA(problem, p_c, system_code):
                              (problem, -0.01, 0),
                          ])
 def test_p_m_EOA(problem, p_m, system_code):
-    algorithms = [EOA.BaseEOA]
+    algorithms = [EOA.OriginalEOA]
     for algorithm in algorithms:
         with pytest.raises(SystemExit) as e:
             model = algorithm(problem, 10, 50, p_m=p_m)
@@ -136,7 +136,7 @@ def test_p_m_EOA(problem, p_m, system_code):
                              (problem, 1.6, 0),
                          ])
 def test_n_best_EOA(problem, n_best, system_code):
-    algorithms = [EOA.BaseEOA]
+    algorithms = [EOA.OriginalEOA]
     for algorithm in algorithms:
         with pytest.raises(SystemExit) as e:
             model = algorithm(problem, 10, 50, n_best=n_best)
@@ -157,7 +157,7 @@ def test_n_best_EOA(problem, n_best, system_code):
                              (problem, -0.01, 0),
                          ])
 def test_alpha_EOA(problem, alpha, system_code):
-    algorithms = [EOA.BaseEOA]
+    algorithms = [EOA.OriginalEOA]
     for algorithm in algorithms:
         with pytest.raises(SystemExit) as e:
             model = algorithm(problem, 10, 50, alpha=alpha)
@@ -178,7 +178,7 @@ def test_alpha_EOA(problem, alpha, system_code):
                              (problem, -0.01, 0),
                          ])
 def test_beta_EOA(problem, beta, system_code):
-    algorithms = [EOA.BaseEOA]
+    algorithms = [EOA.OriginalEOA]
     for algorithm in algorithms:
         with pytest.raises(SystemExit) as e:
             model = algorithm(problem, 10, 50, beta=beta)
@@ -199,7 +199,7 @@ def test_beta_EOA(problem, beta, system_code):
                              (problem, -0.01, 0),
                          ])
 def test_gamma_EOA(problem, gamma, system_code):
-    algorithms = [EOA.BaseEOA]
+    algorithms = [EOA.OriginalEOA]
     for algorithm in algorithms:
         with pytest.raises(SystemExit) as e:
             model = algorithm(problem, 10, 50, gamma=gamma)

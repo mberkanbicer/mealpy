@@ -11,12 +11,12 @@ from mealpy.optimizer import Optimizer
 
 class ImprovedBSO(Optimizer):
     """
-    My improved version of: Brain Storm Optimization (BSO)
+    The improved version: Brain Storm Optimization (BSO)
 
     Notes
     ~~~~~
     + Remove some probability parameters, and some useless equations.
-    + Add Levy-flight technique for more robust
+    + Levy-flight technique is used for robustness
 
     Hyper-parameters should fine-tune in approximate range to get faster convergence toward the global optimum:
         + m_clusters (int): [3, 10], number of clusters (m in the paper)
@@ -47,16 +47,15 @@ class ImprovedBSO(Optimizer):
     >>> p2 = 0.5
     >>> p3 = 0.75
     >>> p4 = 0.6
-    >>> model = ImprovedBSO(problem_dict1, epoch, pop_size, m_clusters, p1, p2, p3, p4)
-    >>> best_position, best_fitness = model.solve()
+    >>> model = ImprovedBSO(epoch, pop_size, m_clusters, p1, p2, p3, p4)
+    >>> best_position, best_fitness = model.solve(problem_dict1)
     >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
     """
 
-    def __init__(self, problem, epoch=10000, pop_size=100,
+    def __init__(self, epoch=10000, pop_size=100,
                  m_clusters=5, p1=0.25, p2=0.5, p3=0.75, p4=0.5, **kwargs):
         """
         Args:
-            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
             m_clusters (int): number of clusters (m in the paper)
@@ -65,7 +64,7 @@ class ImprovedBSO(Optimizer):
             p3 (float): 75% percent develop the old idea, 25% invented new idea based on levy-flight
             p4 (float): Need more weights on the centers instead of the random position
         """
-        super().__init__(problem, kwargs)
+        super().__init__(**kwargs)
         self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
         self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
         self.m_clusters = self.validator.check_int("m_clusters", m_clusters, [2, int(self.pop_size/5)])
@@ -73,6 +72,7 @@ class ImprovedBSO(Optimizer):
         self.p2 = self.validator.check_float("p2", p2, (0, 1.0))
         self.p3 = self.validator.check_float("p3", p3, (0, 1.0))
         self.p4 = self.validator.check_float("p4", p4, (0, 1.0))
+        self.set_parameters(["epoch", "pop_size", "m_clusters", "p1", "p2", "p3", "p4"])
 
         self.nfe_per_epoch = self.pop_size
         self.sort_flag = False
@@ -86,16 +86,11 @@ class ImprovedBSO(Optimizer):
             centers.append(deepcopy(local_best))
         return centers
 
-    def make_group__(self, pop):
-        pop_group = []
-        for idx in range(0, self.m_clusters):
-            pop_group.append(deepcopy(pop[idx * self.m_solution:(idx + 1) * self.m_solution]))
-        return pop_group
-
-    def after_initialization(self):
-        self.pop_group = self.make_group__(self.pop)
+    def initialization(self):
+        if self.pop is None:
+            self.pop = self.create_population(self.pop_size)
+        self.pop_group = self.create_pop_group(self.pop, self.m_clusters, self.m_solution)
         self.centers = self.find_cluster__(self.pop_group)
-        _, self.g_best = self.get_global_best_solution(self.pop)
 
     def evolve(self, epoch):
         """
@@ -149,7 +144,7 @@ class ImprovedBSO(Optimizer):
             self.pop += pop_group[idx]
 
 
-class BaseBSO(ImprovedBSO):
+class OriginalBSO(ImprovedBSO):
     """
     The original version of: Brain Storm Optimization (BSO)
 
@@ -167,7 +162,7 @@ class BaseBSO(ImprovedBSO):
     Examples
     ~~~~~~~~
     >>> import numpy as np
-    >>> from mealpy.human_based.BSO import BaseBSO
+    >>> from mealpy.human_based.BSO import OriginalBSO
     >>>
     >>> def fitness_function(solution):
     >>>     return np.sum(solution**2)
@@ -187,8 +182,8 @@ class BaseBSO(ImprovedBSO):
     >>> p3 = 0.4
     >>> p4 = 0.5
     >>> slope = 20
-    >>> model = BaseBSO(problem_dict1, epoch, pop_size, m_clusters, p1, p2, p3, p4, slope)
-    >>> best_position, best_fitness = model.solve()
+    >>> model = OriginalBSO(epoch, pop_size, m_clusters, p1, p2, p3, p4, slope)
+    >>> best_position, best_fitness = model.solve(problem_dict1)
     >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
 
     References
@@ -197,11 +192,9 @@ class BaseBSO(ImprovedBSO):
     conference in swarm intelligence (pp. 303-309). Springer, Berlin, Heidelberg.
     """
 
-    def __init__(self, problem, epoch=10000, pop_size=100,
-                 m_clusters=5, p1=0.2, p2=0.8, p3=0.4, p4=0.5, slope=20, **kwargs):
+    def __init__(self, epoch=10000, pop_size=100, m_clusters=5, p1=0.2, p2=0.8, p3=0.4, p4=0.5, slope=20, **kwargs):
         """
         Args:
-            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
             m_clusters (int): number of clusters (m in the paper)
@@ -211,8 +204,9 @@ class BaseBSO(ImprovedBSO):
             p4 (float): probability
             slope (int): changing logsig() function's slope (k: in the paper)
         """
-        super().__init__(problem, epoch, pop_size, m_clusters, p1, p2, p3, p4, **kwargs)
+        super().__init__(epoch, pop_size, m_clusters, p1, p2, p3, p4, **kwargs)
         self.slope = self.validator.check_int("slope", slope, [10, 50])
+        self.set_parameters(["epoch", "pop_size", "m_clusters", "p1", "p2", "p3", "p4", "slope"])
 
     def amend_position(self, position=None, lb=None, ub=None):
         """

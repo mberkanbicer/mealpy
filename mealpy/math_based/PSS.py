@@ -41,8 +41,8 @@ class OriginalPSS(Optimizer):
     >>> pop_size = 50
     >>> acceptance_rate = 0.8
     >>> sampling_method = "LHS"
-    >>> model = OriginalPSS(problem_dict1, epoch, pop_size, acceptance_rate, sampling_method)
-    >>> best_position, best_fitness = model.solve()
+    >>> model = OriginalPSS(epoch, pop_size, acceptance_rate, sampling_method)
+    >>> best_position, best_fitness = model.solve(problem_dict1)
     >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
 
     References
@@ -50,23 +50,25 @@ class OriginalPSS(Optimizer):
     [1] Shaqfa, M. and Beyer, K., 2021. Pareto-like sequential sampling heuristic for global optimisation. Soft Computing, 25(14), pp.9077-9096.
     """
 
-    def __init__(self, problem, epoch=10000, pop_size=100, acceptance_rate=0.9, sampling_method="LHS", **kwargs):
+    def __init__(self, epoch=10000, pop_size=100, acceptance_rate=0.9, sampling_method="LHS", **kwargs):
         """
         Args:
-            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
             acceptance_rate (float): the probability of accepting a solution in the normal range, default = 0.9
             sampling_method (str): 'LHS': Latin-Hypercube or 'MC': 'MonteCarlo', default = "LHS"
         """
-        super().__init__(problem, kwargs)
+        super().__init__(**kwargs)
         self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
         self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
         self.acceptance_rate = self.validator.check_float("acceptance_rate", acceptance_rate, (0, 1.0))
         self.sampling_method = self.validator.check_str("sampling_method", sampling_method, ["MC", "LHS"])
+        self.set_parameters(["epoch", "pop_size", "acceptance_rate", "sampling_method"])
 
         self.nfe_per_epoch = self.pop_size
         self.sort_flag = False
+
+    def initialize_variables(self):
         self.step = 10e-10
         self.steps = np.ones(self.problem.n_dims) * self.step
         self.new_solution = True
@@ -79,7 +81,7 @@ class OriginalPSS(Optimizer):
             pop = sampler.random(n=pop_size)
         return pop
 
-    def after_initialization(self):
+    def initialization(self):
         lb_pop = np.repeat(np.reshape(self.problem.lb, (1, -1)), self.pop_size, axis=0)
         ub_pop = np.repeat(np.reshape(self.problem.ub, (1, -1)), self.pop_size, axis=0)
         steps_mat = np.repeat(np.reshape(self.steps, (1, -1)), self.pop_size, axis=0)
@@ -91,7 +93,6 @@ class OriginalPSS(Optimizer):
             pos_new = self.amend_position(pos, self.problem.lb, self.problem.ub)
             target = self.get_target_wrapper(pos_new)
             self.pop.append([pos_new, target])
-        _, self.g_best = self.get_global_best_solution(self.pop)
 
     def evolve(self, epoch):
         """

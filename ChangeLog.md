@@ -1,3 +1,45 @@
+
+
+Different versions of mealpy in terms of passing hyper-parameters. So please careful check your version before
+  using this library. (All releases can be found here: [Link](https://pypi.org/project/mealpy/#history))
+  * mealpy < 1.0.5
+  * 1.1.0 < mealpy < 1.2.2
+  * 2.0.0 <= mealpy <= 2.1.2
+  * mealpy == 2.2.0 
+  * mealpy == 2.3.0 
+  * 2.4.0 <= mealpy <= 2.4.2 (From this version, algorithms can solve discrete problem)
+  * mealpy >= 2.5.0 (Define model 1 time, solve multiple problems)
+
+
+
+
+# Version 2.5.0
+
+### Update
+
++ Add save and load model functionalities in mealpy.utils.io module.
++ Add object that hold global/current worst solution in history object
++ Add method create_pop_group() in Optimizer class 
++ Add method before_initialization() in Optimizer class
++ Refactor initialization() and after_initialization() in Optimizer class
++ Remove before_evolve(), after_evolve(), and levy_flight() in Optimizer class
++ Convert termination_start() and termination_end() to check_termination() in Optimizer class
++ Remove boundary.py in utils
++ Add set_parameters() and get_parameters() in all optimizers
++ **Update new Problem class, move problem parameter from Optimizer to solve() function.**
++ Fix bug printing same entry multiple times in logger.
++ Fix bug exit() in Optimizer and utils package.
++ **Update new Termination class, move termination parameter from Optimizer to solve() function.**
++ **Add Multitask class that can run multiple optimizers on multiple problems with multiple trials.**
++ Refactor all optimizers.
++ **Add Tuner class that can help tuning hyper-parameters of optimizer.**
++ Add examples how to build new optimizer.
++ Add examples for Multitask and Tuner class.
++ Update documents, examples, tests
+
+
+---------------------------------------------------------------------
+
 # Version 2.4.2
 
 ### Update
@@ -99,7 +141,7 @@ Type: Sequential has 2 training modes
     * After the training process, everything can be accessed via the objective "history" (model.history)
 
 * You can name your model and name your fitness function when creating a model 
-  * model(problem, epoch, pop_size, ...., name='your model name', fit_name='your fitness function name')
+  * model(epoch, pop_size, ...., name='your model name', fit_name='your fitness function name')
 * Add new algorithms: 
   * Gradient-Based Optimizer (GBO) in math_based group
   * Chaos Game Optimization (CGO) in math_based group
@@ -401,7 +443,7 @@ Type: Sequential has 2 training modes
 
 + Update GWO and its variants (GWO > RW_GWO)
     + Added Random Walk Grey Wolf Optimization - RW_GWO
-    + BaseGWO always perform better than RW_GWO
+    + OriginalGWO always perform better than RW_GWO
     
     
 + Update root.py
@@ -451,7 +493,7 @@ Type: Sequential has 2 training modes
         + My version not only faster but also better
         
 + Added Spotted Hyena Optimizer (SHO) to swarm_based group:
-    + BaseSHO: my modified version
+    + OriginalSHO: my modified version
 
        
 + Add category for fake algorithms (papers) and proofs: 
@@ -541,7 +583,7 @@ Type: Sequential has 2 training modes
     
 + For bio_based:
     + BaseIWO (IWO):
-    + BaseWHO (WHO):
+    + OriginalWHO (WHO):
     + BaseBBO (BBO):
         + Remove all third loop, make algorithm n-times faster than original 
         + In the migration step, instead of select solution based on the wheel in every variable in position, 
@@ -567,7 +609,7 @@ Type: Sequential has 2 training modes
         + The idea of the equation seems like taken from DE, the adaptation and reproduction process seem like taken from CRO.
         + Appearance from 2015, but still now 2020 none of Matlab code or python code about this algorithm.
     + EOA: 
-        + BaseEOA: My modified version from original Matlab version
+        + OriginalEOA: My modified version from original Matlab version
             + The original version from Matlab code above will not work well, even with small dimensions.
             + I changed updating process
             + Changed the Cauchy process using x_mean
@@ -579,7 +621,7 @@ Type: Sequential has 2 training modes
         + Remove all third loop
         + Apply batch-size idea
     + BSO:
-        + BaseBSO: This is original version
+        + OriginalBSO: This is original version
         + ImprovedBSO: My improved version with levy-flight and removal of some parameters.
     + QSA: 4 variant version now runs faster than n-times Original version
         + BaseQSA: Remove all third loop, apply the idea of the global best solution
@@ -595,7 +637,7 @@ Type: Sequential has 2 training modes
         + LevyLCBO: Use levy-flight and is the best among 3 version
         + ImprovedLCBO: 
     + SSDO:
-        + BaseSSDO: This is the original version
+        + OriginalSSDO: This is the original version
         + LevySSDO: Apply the idea of levy-flight
     + GSKA:
         + OriginalGSKA: This is the original version, very slow for large-scale and slow convergence
@@ -607,12 +649,12 @@ Type: Sequential has 2 training modes
 
 + For physics_based group:
     + WDO: 
-        + BaseWDO: is the original version
+        + OriginalWDO: is the original version
     + MVO:
         + OriginalMVO: is weak and slow algorithm 
         + BaseMVO: can solve large-scale optimization problems
     + TWO:
-        + BaseTWO: is the original version
+        + OriginalTWO: is the original version
         + OppoTWO: using opposition-based techniques (better than original version)
         + LevyTWO: using only levy-flight and better than OppoTWO
         + ImprovedTWO: using opposition-based and levy-flight and better than all others
@@ -620,64 +662,64 @@ Type: Sequential has 2 training modes
         + OriginalEFO: is the original version, run fast but slow convergence
         + BaseEFO: using levy-flight for large-scale dimension
     + NRO:
-        + BaseNRO: is the original version, efficient even with large-scale due to levy-flight techniques
+        + OriginalNRO: is the original version, efficient even with large-scale due to levy-flight techniques
         but running-time will slow because third loop.
     + HGSO:
-        + BaseHGSO: is the original version
+        + OriginalHGSO: is the original version
         + OppoHGSO: uses opposition-based technique
         + LevyHGSO: uses levy-flight technique
     + ASO:
-        + BaseASO: is the original version
+        + OriginalASO: is the original version
     + EO:
-        + BaseEO: is the original version
+        + OriginalEO: is the original version
         + LevyEO: uses levy-flight technique for large-scale dimensions
 
 + For probabilistic_based group:
     + CEM:
-        + BaseCEM: is the original version
+        + OriginalCEM: is the original version
         + CEBaseSBO: is the hybrid version of Satin Bowerbird Optimizer (SBO) and CEM
         + CEBaseSSDO: is the hybrid version of Social-Sky Driving Optimization (SSDO) and CEM
         + CEBaseLCBO and CEBaseLCBONew: are the hybrid version of Life Choice Based Optimization and CEM
 
 + For evolutionary_based group: (Not good for large-scale problems)
     + EP:
-        + BaseEP: is the original version
+        + OriginalEP: is the original version
         + LevyEP: applied levy-flight 
     + ES:
-        + BaseES: is the original version
+        + OriginalES: is the original version
         + LevyES: applied levy-flight
     + MA:
-        + BaseMA: is the original version, can't remove third loop, very slow algorithm
+        + OriginalMA: is the original version, can't remove third loop, very slow algorithm
     + GA:
         + BaseGA: is the original version 
     + DE:
         + BaseDE: is the original version
     + FPA:
-        + BaseFPA: is the original version (already use levy-flight in it)
+        + OriginalFPA: is the original version (already use levy-flight in it)
     + CRO:
-        + BaseCRO: is the original version
+        + OriginalCRO: is the original version
         + OCRO: is the opposition-based version
 
 + For swarm_based group: 
     + PSO:
-        + BasePSO: is the original version
+        + OriginalPSO: is the original version
         + PPSO: Phasor particle swarm optimization: a simple and efficient variant of PSO
         + PSO_W: A modified particle swarm optimizer
         + HPSO_TVA: New self-organising  hierarchical PSO with jumping time-varying acceleration coefficients
     + ABC:
-        + BaseABC: my version and taken from Clever Algorithms
+        + OriginalABC: my version and taken from Clever Algorithms
     + FA:
-        + BaseFA: is the original version, running slow even the all third loop already removed
+        + OriginalFA: is the original version, running slow even the all third loop already removed
     + BA:
         + OriginalBA: is the original version 
         + BasicBA: is also the original version with improved parameters
-        + BaseBA: my modified version without A parameter
+        + AdaptiveBA: my modified version without A parameter
     + PIO: 
         + This is fake algorithm, after changing almost everything, the algorithm works
         + BasePIO: My base version
         + LevyPIO: My version based on levy-flight for large-scale dimensions
     + GWO:
-        + BaseGWO: is the original version
+        + OriginalGWO: is the original version
     + ALO:
         + OriginalALO: is the original version, slow and less efficient
         + BaseALO: my modified version which using matrix multiplication for faster 
@@ -685,21 +727,21 @@ Type: Sequential has 2 training modes
         + OriginalMFO: is the original version
         + BaseMFO: my modified version which remove third loop, change equations and flow
     + EHO:
-        + BaseEHO: is the original version
+        + OriginalEHO: is the original version
         + LevyEHO: my levy-flight version of EHO
     + WOA:
-        + BaseWOA: is the original version
+        + OriginalWOA: is the original version
     + BSA:
-        + BaseBSA: is the original version
+        + OriginalBSA: is the original version
     + SRSR:
-        + BaseSRSR: is the original version
+        + OriginalSRSR: is the original version
     + GOA:
-        + BaseGOA: is the original version with some changed from me:
+        + OriginalGOA: is the original version with some changed from me:
             + I added normal() component to Eq, 2.7
             + Changed the way to calculate distance between two location
             + Used batch-size idea    
     + MSA:
-        + BaseMSA: is my modified version with some changed from original matlab code version
+        + OriginalMSA: is my modified version with some changed from original matlab code version
     + RHO:
         + OriginalRHO: is the original version, not working 
         + BaseRHO: my changed version 
@@ -716,7 +758,7 @@ Type: Sequential has 2 training modes
             + Fourth: Batch size idea
             + Fifth: Add normal() component and change minus sign to a plus
     + NMRA:
-        + BaseNMRA: The original version
+        + OriginalNMRA: The original version
             + The Matlab code of paper's author here: https://github.com/rohitsalgotra/Naked-Mole-Rat-Algorithm
             + Matlab code and paper are very different. 
         + LevyNMRA: My levy-flight version 
@@ -725,45 +767,45 @@ Type: Sequential has 2 training modes
             + Using levy-flight
             + Using crossover operator
     + BES:
-        + BaseBES: the original version
+        + OriginalBES: the original version
     + PFA:
-        + BasePFA: is the original version, I did redesign the equation based on distance.
+        + OriginalPFA: is the original version, I did redesign the equation based on distance.
             + The problem with using the distance is that when increasing the bound and dimensions 
             --> distance increase very fast --> new position will always over the bound
             --> we should divide the distance to a number of dimensions and the distance of the bound (upper-lower) to
             stabilize the distance 
             + The second problem is a new solution based on all other solutions --> we should also divide the new solution
             by the population size to stabilize it.
-        + OPFA: is an enhanced version of PFA based on Opposition-based Learning (better than BasePFA)
+        + OPFA: is an enhanced version of PFA based on Opposition-based Learning (better than OriginalPFA)
         + ImprovedPFA: (sometime better than OPFA)
             + using opposition-based learning
             + using levy-flight 2 times
     + SFO:
-        + BaseSFO: is the original version
+        + OriginalSFO: is the original version
         + ImprovedSFO: my improved version in which
             + Reform Energy equation,
             + No need parameter A and epxilon
             + Based on idea of Opposition-based Learning
     + SLO:
-        + BaseSLO: is the changed version from my student
+        + OriginalSLO: is the changed version from my student
         + ImprovedSLO: is the improved version 
     + SpaSA:
         + BaseSpaSA: is my modified version, the original paper is fake, tons of unclear like parameters or equations
     + MRFO:
-        + BaseMRFO: is the original version
+        + OriginalMRFO: is the original version
         + LevyMRFO: is my modified version based on levy-flight
     + HHO:
-        + BaseHHO: is the original version 
+        + OriginalHHO: is the original version 
     + SSA:
         + OriginalSSA: is the original version
         + BaseSSA: my modified version 
     + CSO:
-        + BaseCSO: is the original version
+        + OriginalCSO: is the original version
     + BFO:
         + BaseBFO: is the adaptive version of BFO
         + OriginalBFO: is the original version taken from Clever Algorithms
     + SSO:
-        + BaseSSO: is the original version
+        + OriginalSSO: is the original version
     
 
 ### Change others
@@ -824,7 +866,7 @@ Type: Sequential has 2 training modes
 
 ### Change models
 + Fix bugs in Probabilistic-based algorithm
-    + BaseCEM
+    + OriginalCEM
     + CEBaseLCBO
     + CEBaseLCBONew: No levy
     + CEBaseSSDO
@@ -872,7 +914,7 @@ Type: Sequential has 2 training modes
 + models_history.csv: Update history of meta-heuristic algorithms        
 + examples: Added new examples of: 
     + BaseVCS
-    + BaseCEM
+    + OriginalCEM
 
 ---------------------------------------------------------------------
 
@@ -882,22 +924,22 @@ Type: Sequential has 2 training modes
 ### Change models
 + Evolutionary-based group 
     + Added Evolution Strategies (ES)
-        + BaseES
+        + OriginalES
         + LevyES: Idea ==> Top population being mutated based on strategy, Left population try to get out of their
          position based on levy-flight. 
     + Added Evolution Programming (EP)
-        + BaseEP: Different than ES by operator and bout_size
+        + OriginalEP: Different than ES by operator and bout_size
         + LevyEP: Idea ==> Top population being selected based on tournament strategy round, 50% Left population
              try to make a comeback to take the good position with levy jump.
     + Added Memetic Algorithm (MA)
-        + BaseMA
+        + OriginalMA
     
 ### Change others
 + models_history.csv: Update history of meta-heuristic algorithms        
 + examples: Added new examples of: 
-    + BaseES and LevyES
-    + BaseEP and LevyEP
-    + BaseMA
+    + OriginalES and LevyES
+    + OriginalEP and LevyEP
+    + OriginalMA
 
 ---------------------------------------------------------------------
 
@@ -907,7 +949,7 @@ Type: Sequential has 2 training modes
 ### Change models
 + Swarm-based group
     + Added Elephant Herding Optimization (EHO) in Swarm-based group
-        + BaseEHO
+        + OriginalEHO
         + LevyEHO: Changed the Uniform distribution the "Separating operator" by Levy-flight (50%) and Gaussian(50%) 
     + Added Pigeon-Inspired Optimization (PIO) in Swarm-based group
         + BasePIO (Changed almost everything include flow the algorithm)
@@ -921,8 +963,8 @@ Type: Sequential has 2 training modes
 + Human-based group
     + Added Gaining Sharing Knowledge-based Algorithm (GSKA)
     + Added Brain Storm Optimization Algorithm (BSO)
-        + BaseBSO
-        + ImprovedBSO (Remove some parameters + Changed Equations + Levy-flight + BaseBSO)
+        + OriginalBSO
+        + ImprovedBSO (Remove some parameters + Changed Equations + Levy-flight + OriginalBSO)
 
 + Evolutionary-based group 
     + Added Flower Pollination Algorithm (FPA)
@@ -934,13 +976,13 @@ Type: Sequential has 2 training modes
 ### Change others
 + models_history.csv: Update history of meta-heuristic algorithms        
 + examples: Added new examples of: 
-    + BaseFA 
+    + OriginalFA 
     + OriginalAAA
-    + BaseBSO and ImprovedBSO 
+    + OriginalBSO and ImprovedBSO 
     + BaseGSKA
     + BasePIO and LevyPIO
-    + BaseEHO and LevyEHO
-    + BaseFPA
+    + OriginalEHO and LevyEHO
+    + OriginalFPA
     
 
 
@@ -950,12 +992,12 @@ Type: Sequential has 2 training modes
 
 ### Change models
 + Added Sea Lion Optimization in Swarm-based group
-    + BaseSLO
+    + OriginalSLO
     + ImprovedSLO (Shrinking Encircling + Levy + SLO)
  
 ### Change others
 + models_history.csv: Update history of meta-heuristic algorithms        
-+ examples: Added new examples of: BaseSLO and ImprovedSLO 
++ examples: Added new examples of: OriginalSLO and ImprovedSLO 
 
 
 ---------------------------------------------------------------------
@@ -965,12 +1007,12 @@ Type: Sequential has 2 training modes
 
 ### Change models
 + Added Coral Reefs Optimization in Evolutionary-based group
-    + BaseCRO
+    + OriginalCRO
     + OCRO (Opposition-based CRO)
  
 ### Change others
 + models_history.csv: Update history of meta-heuristic algorithms        
-+ examples: Added new examples of: BaseCRO and CRO   
++ examples: Added new examples of: OriginalCRO and CRO   
 
 
 ---------------------------------------------------------------------
@@ -1058,7 +1100,7 @@ Type: Sequential has 2 training modes
     * SBO - Satin Bowerbird Optimizer
     * WHO - Wildebeest Herd Optimization
         + OriginalWHO: The original version
-        + BaseWHO: I changed the flow of algorithm
+        + OriginalWHO: I changed the flow of algorithm
     * BWO - Black Widow Optimization
     
 ### Change others
@@ -1089,7 +1131,7 @@ Type: Sequential has 2 training modes
     * LCBO: Life Choice-Based Optimization
     * SSDO - Social Ski-Driver Optimization
         + OriginalSSDO: The original version
-        + BaseSSDO: The flow changed + SSDO
+        + OriginalSSDO: The flow changed + SSDO
         
 ### Change others
 + models_history.csv: Update history of meta-heuristic algorithms        
@@ -1120,7 +1162,7 @@ Type: Sequential has 2 training modes
 + Physics_based: Added the cutting-edge physics-based meta-heuristic algorithms
     * NRO - Nuclear Reaction Optimization  
     * HGSO - Henry Gas Solubility Optimization
-        + BaseHGSO: The original version
+        + OriginalHGSO: The original version
         + OppoHGSO: Opposition-based + HGSO
         + LevyHGSO: Levy + HGSO
     * ASO - Atom Search Optimization
@@ -1139,7 +1181,7 @@ Type: Sequential has 2 training modes
     * WDO - Wind Driven Optimization 
     * MVO - Multi-Verse Optimizer 
     * TWO - Tug of War Optimization
-        + BaseTWO: The original version
+        + OriginalTWO: The original version
         + OppoTWO / OppoTWO: Opposition-based + TWO
         + LevyTWO: Levy + TWO
         + ITWO: Levy + Opposition-based + TWO
@@ -1169,22 +1211,22 @@ Type: Sequential has 2 training modes
         + OriginalEPO: Not working
         + BaseEPO: My version and works
     * NMRA - Nake Mole\-rat Algorithm
-        + BaseNMRA: The original 
-        + LevyNMR: Levy + BaseNMRA 
+        + OriginalNMRA: The original 
+        + LevyNMR: Levy + OriginalNMRA 
     * BES - Bald Eagle Search 
     * PFA - Pathfinder Algorithm
-        + BasePFA: The original
+        + OriginalPFA: The original
         + OPFA: Opposition-based PFA
         + LPFA: Levy-based PFA
         + IPFA: Improved PFA (Levy + Opposition + PFA)
         + DePFA: DE + PFA
         + LevyDePFA: Levy + DE + PFA
     * SFO - Sailfish Optimizer
-        + BaseSFO: The original
+        + OriginalSFO: The original
         + ImprovedSFO: Changed Equations + Opposition-based + SFO
     * HHO - Harris Hawks Optimization 
     * MRFO - Manta Ray Foraging Optimization
-        + BaseMRFO: The original
+        + OriginalMRFO: The original
         + MyMRFO: The version I changed the flow of the original one
     
     
@@ -1198,7 +1240,7 @@ Type: Sequential has 2 training modes
 ### Change models
 + Swarm_based: Added more recently algorithm (since 2010 to 2016)
     * OriginalALO, BaseALO - Ant Lion Optimizer
-    * OriginalBA, AdaptiveBA, BaseBA - Bat Algorithm
+    * OriginalBA, AdaptiveBA, AdaptiveBA - Bat Algorithm
     * BSA - Bird Swarm Algorithm 
     * GWO - Grey Wolf Optimizer
     * MFO - Moth-flame optimization 

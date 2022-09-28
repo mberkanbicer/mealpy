@@ -4,8 +4,9 @@
 #       Github: https://github.com/thieu1995        %
 # --------------------------------------------------%
 
+import time
+from mealpy.utils import validator
 from mealpy.utils.logger import Logger
-from mealpy.utils.boundary import is_in_bound, is_str_in_list
 
 
 class Termination:
@@ -30,7 +31,7 @@ class Termination:
     Examples
     ~~~~~~~~
     >>> import numpy as np
-    >>> from mealpy.swarm_based.PSO import BasePSO
+    >>> from mealpy.swarm_based.PSO import OriginalPSO
     >>>
     >>> def fitness_function(solution):
     >>>     return np.sum(solution**2)
@@ -45,57 +46,57 @@ class Termination:
     >>>     "mode": "FE",
     >>>     "quantity": 100000  # 100000 number of function evaluation
     >>> }
-    >>> model1 = BasePSO(problem_dict, epoch=1000, pop_size=50, termination=term_dict)
+    >>> model1 = OriginalPSO(epoch=1000, pop_size=50)
+    >>> model1.solve(problem_dict, termination=term_dict)
     """
 
     SUPPORTED_TERMINATIONS = {
         "FE": ["Function Evaluation", [10, 1000000000]],
         "ES": ["Early Stopping", [1, 1000000]],
-        "TB": ["Time Bound", [10, 1000000]],
+        "TB": ["Time Bound", [1, 1000000]],
         "MG": ["Maximum Generation", [1, 1000000]],
     }
 
-    def __init__(self, **kwargs):
+    def __init__(self, mode="FE", quantity=10000, **kwargs):
+        self.mode, self.quantity, self.name = None, None, None
         self.exit_flag, self.message, self.log_to, self.log_file = False, "", None, None
         self.__set_keyword_arguments(kwargs)
+        self.__set_termination(mode, quantity)
         self.logger = Logger(self.log_to, log_file=self.log_file).create_logger(name=f"{__name__}.{__class__.__name__}",
             format_str='%(asctime)s, %(levelname)s, %(name)s [line: %(lineno)d]: %(message)s')
         self.logger.propagate = False
-        self.__check_termination(kwargs)
 
     def __set_keyword_arguments(self, kwargs):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    def __check_termination(self, kwargs):
-        if ("mode" in kwargs) and ("quantity" in kwargs):
-            self.__check_mode(kwargs["mode"], kwargs["quantity"])
-        elif ("termination" in kwargs) and type(kwargs["termination"] is dict):
-            if ("mode" in kwargs["termination"]) and ("quantity" in kwargs["termination"]):
-                self.__set_keyword_arguments(kwargs["termination"])
-                self.__check_mode(kwargs["termination"]["mode"], kwargs["termination"]["quantity"])
-            else:
-                self.logger.error("You need to set up the termination dictionary with at least 'mode' and 'quantity'.")
-                exit(0)
-        else:
-            self.logger.error("You need to set up the termination dictionary with at least 'mode' and 'quantity'.")
-            exit(0)
-
-    def __check_mode(self, mode, quantity):
-        if is_str_in_list(mode, list(self.SUPPORTED_TERMINATIONS.keys())):
+    def __set_termination(self, mode, quantity):
+        if validator.is_str_in_list(mode, list(Termination.SUPPORTED_TERMINATIONS.keys())):
             self.mode = mode
-            self.name = self.SUPPORTED_TERMINATIONS[mode][0]
-
-            if type(quantity) in [int, float]:
+            self.name = Termination.SUPPORTED_TERMINATIONS[mode][0]
+            if type(quantity) in (int, float):
                 qt = int(quantity)
-                if is_in_bound(qt, self.SUPPORTED_TERMINATIONS[mode][1]):
+                if validator.is_in_bound(qt, Termination.SUPPORTED_TERMINATIONS[mode][1]):
                     self.quantity = qt
                 else:
-                    self.logger.error(f"Mode: {mode}, 'quantity' is an integer and should be in range: {self.SUPPORTED_TERMINATIONS[mode][1]}.")
-                    exit(0)
+                    raise ValueError(f"Mode: {mode}, 'quantity' is an integer and should be in range: {Termination.SUPPORTED_TERMINATIONS[mode][1]}.")
             else:
-                self.logger.error(f"Mode: {mode}, 'quantity' is an integer and should be in range: {self.SUPPORTED_TERMINATIONS[mode][1]}.")
-                exit(0)
+                raise ValueError(f"Mode: {mode}, 'quantity' is an integer and should be in range: {Termination.SUPPORTED_TERMINATIONS[mode][1]}.")
         else:
-            self.logger.error("Supported termination mode: FE (function evaluation), TB (time bound), ES (early stopping), MG (maximum generation).")
-            exit(0)
+            raise ValueError("Supported termination mode: FE (function evaluation), TB (time bound), ES (early stopping), MG (maximum generation).")
+
+    def get_name(self):
+        return self.name
+
+    def get_default_counter(self, epoch):
+        if self.mode in ["ES", "FE"]:
+            return 0
+        elif self.mode == "TB":
+            return time.perf_counter()
+        else:
+            return epoch
+
+    def is_finished(self, counter):
+        if counter >= self.quantity:
+            return True
+        return False

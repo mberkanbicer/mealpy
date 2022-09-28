@@ -14,17 +14,23 @@ mealpy/human_based/PO.py
 mealpy/human_based/SPBO.py
 mealpy/human_based/WarSO.py
 mealpy/math_based/CircleSA.py
-
+examples/utils/history*
+examples/history*
+history*
 
 check_algo.py
 examples/hehu.py
+examples/myhelp.py
+
+*$.ipynd_checkpoint*
 
 # Pycharm
 .idea/
 drafts/
-assets/commands.md
-assets/ga_exam.py
-assets/tut_upcode.md
+.github/commands.md
+.github/ga_exam.py
+.github/tut_upcode.md
+.github/levy_flight.py
 docs/build/
 testcase/
 

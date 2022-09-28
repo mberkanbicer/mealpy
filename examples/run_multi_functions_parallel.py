@@ -9,12 +9,12 @@ from functools import partial
 from opfunu.cec_basic import cec2014_nobias
 from pandas import DataFrame
 from mealpy.evolutionary_based.DE import BaseDE
-from os import getcwd, path, makedirs
+import os
 
 PATH_RESULTS = "history/results/"
-check_dir = f"{getcwd()}/{PATH_RESULTS}"
-if not path.exists(check_dir):
-    makedirs(check_dir)
+check_dir = f"{os.getcwd()}/{PATH_RESULTS}"
+if not os.path.exists(check_dir):
+    os.makedirs(check_dir)
 
 model_name = "DE"
 n_dims = 30
@@ -29,9 +29,10 @@ def find_minimum(function_name, n_dims):
         "ub": [100, ] * n_dims,
         "minmax": "min",
         "log_to": "console",
+        "name": function_name
     }
-    model = BaseDE(problem, epoch=10, pop_size=50, wf=0.8, cr=0.9, name=model_name, fit_name=function_name)
-    _, best_fitness = model.solve()
+    model = BaseDE(epoch=10, pop_size=50, wf=0.8, cr=0.9, name=model_name)
+    _, best_fitness = model.solve(problem)
     print(f"Finish function: {function_name}")
 
     return {

@@ -4,17 +4,17 @@
 #       Github: https://github.com/thieu1995        %
 # --------------------------------------------------%
 
+import numpy as np
 from mealpy.evolutionary_based.GA import BaseGA
 from mealpy.utils.visualize import *
-from numpy import sum, mean, sqrt
 
 ## Define your own fitness function
 # Multi-objective but single fitness/target value. By using weighting method to convert from multiple objectives to single target
 
 def fitness_function(solution):
-    f1 = (sum(solution ** 2) - mean(solution)) / len(solution)
-    f2 = sum(sqrt(abs(solution)))
-    f3 = sum(mean(solution ** 2) - solution)
+    f1 = (np.sum(solution ** 2) - np.mean(solution)) / len(solution)
+    f2 = np.sum(np.sqrt(np.abs(solution)))
+    f3 = np.sum(np.mean(solution ** 2) - solution)
     return [f1, f2, f3]
 
 
@@ -27,8 +27,8 @@ problem = {
 }
 
 ## Run the algorithm
-model = BaseGA(problem, epoch=100, pop_size=50)
-best_position, best_fitness = model.solve()
+model = BaseGA(epoch=100, pop_size=50)
+best_position, best_fitness = model.solve(problem)
 print(f"Best solution: {best_position}, Best fitness: {best_fitness}")
 
 ## Drawing trajectory of some agents in the first and second dimensions

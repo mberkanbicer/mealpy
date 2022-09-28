@@ -7,12 +7,12 @@
 from opfunu.cec_basic import cec2014_nobias
 from pandas import DataFrame
 from mealpy.evolutionary_based.DE import BaseDE
-from os import getcwd, path, makedirs
+import os
 
 PATH_RESULTS = "history/results/"
-check_dir = f"{getcwd()}/{PATH_RESULTS}"
-if not path.exists(check_dir):
-    makedirs(check_dir)
+check_dir = f"{os.getcwd()}/{PATH_RESULTS}"
+if not os.path.exists(check_dir):
+    os.makedirs(check_dir)
 
 ## Setting parameters
 model_name = "DE"
@@ -40,8 +40,8 @@ for func_name in func_names:
         "minmax": "min",
         "log_to": "console",
     }
-    model = BaseDE(problem, epoch, pop_size, wf, cr, fit_name=func_name)
-    _, best_fitness = model.solve()
+    model = BaseDE(epoch, pop_size, wf, cr, fit_name=func_name)
+    _, best_fitness = model.solve(problem)
 
     error_full[func_name] = model.history.list_global_best_fit
     error_columns.append(func_name)

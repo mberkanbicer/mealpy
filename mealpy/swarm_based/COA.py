@@ -9,7 +9,7 @@ from copy import deepcopy
 from mealpy.optimizer import Optimizer
 
 
-class BaseCOA(Optimizer):
+class OriginalCOA(Optimizer):
     """
     The original version of: Coyote Optimization Algorithm (COA)
 
@@ -23,7 +23,7 @@ class BaseCOA(Optimizer):
     Examples
     ~~~~~~~~
     >>> import numpy as np
-    >>> from mealpy.swarm_based.COA import BaseCOA
+    >>> from mealpy.swarm_based.COA import OriginalCOA
     >>>
     >>> def fitness_function(solution):
     >>>     return np.sum(solution**2)
@@ -38,8 +38,8 @@ class BaseCOA(Optimizer):
     >>> epoch = 1000
     >>> pop_size = 50
     >>> n_coyotes = 5
-    >>> model = BaseCOA(problem_dict1, epoch, pop_size, n_coyotes)
-    >>> best_position, best_fitness = model.solve()
+    >>> model = OriginalCOA(epoch, pop_size, n_coyotes)
+    >>> best_position, best_fitness = model.solve(problem_dict1)
     >>> print(f"Solution: {best_position}, Fitness: {best_fitness}")
 
     References
@@ -50,27 +50,28 @@ class BaseCOA(Optimizer):
 
     ID_AGE = 2
 
-    def __init__(self, problem, epoch=10000, pop_size=100, n_coyotes=5, **kwargs):
+    def __init__(self, epoch=10000, pop_size=100, n_coyotes=5, **kwargs):
         """
         Args:
-            problem (dict): The problem dictionary
             epoch (int): maximum number of iterations, default = 10000
             pop_size (int): number of population size, default = 100
             n_coyotes (int): number of coyotes per group, default=5
         """
-        super().__init__(problem, kwargs)
+        super().__init__(**kwargs)
         self.epoch = self.validator.check_int("epoch", epoch, [1, 100000])
         self.pop_size = self.validator.check_int("pop_size", pop_size, [10, 10000])
         self.n_coyotes = self.validator.check_int("n_coyotes", n_coyotes, [2, int(self.pop_size / 2)])
+        self.set_parameters(["epoch", "pop_size", "n_coyotes"])
         self.n_packs = int(pop_size / self.n_coyotes)
-        self.ps = 1 / self.problem.n_dims
-        self.p_leave = 0.005 * (self.n_coyotes ** 2)  # Probability of leaving a pack
         self.nfe_per_epoch = self.pop_size + 1
         self.sort_flag = False
 
-    def after_initialization(self):
-        self.pop_group = self.create_pop_group__(self.pop)
-        _, self.g_best = self.get_global_best_solution(self.pop)
+    def initialization(self):
+        if self.pop is None:
+            self.pop = self.create_population(self.pop_size)
+        self.pop_group = self.create_pop_group(self.pop, self.n_packs, self.n_coyotes)
+        self.ps = 1 / self.problem.n_dims
+        self.p_leave = 0.005 * (self.n_coyotes ** 2)  # Probability of leaving a pack
 
     def create_solution(self, lb=None, ub=None, pos=None):
         """
@@ -85,13 +86,6 @@ class BaseCOA(Optimizer):
         target = self.get_target_wrapper(pos)
         age = 1
         return [pos, target, age]
-
-    def create_pop_group__(self, pop):
-        pop_group = []
-        for i in range(0, self.n_packs):
-            group = pop[i * self.n_coyotes:(i + 1) * self.n_coyotes]
-            pop_group.append(group)
-        return pop_group
 
     def evolve(self, epoch):
         """
