@@ -1,4 +1,4 @@
-# !/usr/bin/env python
+#!/usr/bin/env python
 # Created by "Thieu" at 08:58, 16/03/2020 ----------%
 #       Email: nguyenthieu2102@gmail.com            %
 #       Github: https://github.com/thieu1995        %
@@ -57,6 +57,7 @@ class Optimizer:
         self.sort_flag, self.terminate_counter, self.nfe_per_epoch = False, None, self.pop_size
         self.parameters, self.params_name_ordered = {}, None
         self.AVAILABLE_MODES = ["process", "thread", "swarm"]
+        self.support_parallel_modes = True
 
     def __set_keyword_arguments(self, kwargs):
         for key, value in kwargs.items():
@@ -192,12 +193,19 @@ class Optimizer:
         self.history = History(log_to=self.problem.log_to, log_file=self.problem.log_file)
 
     def check_mode_and_workers(self, mode, n_workers):
-        self.mode = mode
-        if n_workers is not None:
-            if self.mode == "process":
-                self.n_workers = self.validator.check_int("n_workers", n_workers, [2, min(61, os.cpu_count() - 1)])
-            if self.mode == "thread":
-                self.n_workers = self.validator.check_int("n_workers", n_workers, [2, min(32, os.cpu_count() + 4)])
+        self.mode = self.validator.check_str("mode", mode, ["single", "swarm", "thread", "process"])
+        if self.mode in ("process", "thread"):
+            if not self.support_parallel_modes:
+                self.logger.warning(f"{self.__class__.__name__} doesn't support parallelization. The default mode 'single' is activated.")
+                self.mode = "single"
+            elif n_workers is not None:
+                if self.mode == "process":
+                    self.n_workers = self.validator.check_int("n_workers", n_workers, [2, min(61, os.cpu_count() - 1)])
+                if self.mode == "thread":
+                    self.n_workers = self.validator.check_int("n_workers", n_workers, [2, min(32, os.cpu_count() + 4)])
+            else:
+                self.logger.warning(f"The parallel mode: {self.mode} is selected. But n_workers is not set. The default n_workers = 4 is used.")
+                self.n_workers = 4
 
     def check_termination(self, mode="start", termination=None, epoch=None):
         if mode == "start":
@@ -508,6 +516,13 @@ class Optimizer:
             self.history.list_global_worst[-1] = global_worst
             return deepcopy(sorted_pop), deepcopy(global_better)
 
+    def get_index_best(self, pop):
+        fit_list = np.array([agent[self.ID_TAR][self.ID_FIT] for agent in pop])
+        if self.problem.minmax == "min":
+            return np.argmin(fit_list)
+        else:
+            return np.argmax(fit_list)
+
     ## Selection techniques
     def get_index_roulette_wheel_selection(self, list_fitness: np.array):
         """
@@ -519,18 +534,14 @@ class Optimizer:
         Returns:
             int: Index of selected solution
         """
-        scaled_fitness = (list_fitness - np.min(list_fitness)) / (np.ptp(list_fitness) + self.EPSILON)
+        size = len(list_fitness)
+        if np.any(list_fitness) < 0:
+            list_fitness = list_fitness - np.min(list_fitness)
+        final_fitness = list_fitness
         if self.problem.minmax == "min":
-            final_fitness = 1.0 - scaled_fitness
-        else:
-            final_fitness = scaled_fitness
-        total_sum = sum(final_fitness)
-        r = np.random.uniform(low=0, high=total_sum)
-        for idx, f in enumerate(final_fitness):
-            r = r + f
-            if r > total_sum:
-                return idx
-        return np.random.choice(range(0, len(list_fitness)))
+            final_fitness = np.max(list_fitness) - list_fitness
+        prob = final_fitness / np.sum(final_fitness)
+        return np.random.choice(range(0, size), p=prob)
 
     def get_index_kway_tournament_selection(self, pop=None, k_way=0.2, output=2, reverse=False):
         """

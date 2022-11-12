@@ -1,4 +1,4 @@
-# !/usr/bin/env python
+#!/usr/bin/env python
 # Created by "Thieu" at 21:19, 17/03/2020 ----------%
 #       Email: nguyenthieu2102@gmail.com            %
 #       Github: https://github.com/thieu1995        %
@@ -163,6 +163,7 @@ class OriginalEFO(BaseEFO):
             n_field (float): default = 0.45    portion of population, negative field
         """
         super().__init__(epoch, pop_size, r_rate, ps_rate, p_field, n_field, **kwargs)
+        self.support_parallel_modes = False
 
     def amend_position(self, position=None, lb=None, ub=None):
         """

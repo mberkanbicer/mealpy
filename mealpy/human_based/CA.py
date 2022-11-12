@@ -1,4 +1,4 @@
-# !/usr/bin/env python
+#!/usr/bin/env python
 # Created by "Thieu" at 12:09, 02/03/2021 ----------%
 #       Email: nguyenthieu2102@gmail.com            %
 #       Github: https://github.com/thieu1995        %
@@ -60,6 +60,7 @@ class OriginalCA(Optimizer):
         self.accepted_rate = self.validator.check_float("accepted_rate", accepted_rate, (0, 1.0))
         self.set_parameters(["epoch", "pop_size", "accepted_rate"])
 
+        self.support_parallel_modes = False
         self.nfe_per_epoch = self.pop_size
         self.sort_flag = True
 
