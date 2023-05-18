@@ -5,7 +5,6 @@
 # --------------------------------------------------%
 
 import numpy as np
-from copy import deepcopy
 from mealpy.optimizer import Optimizer
 
 
@@ -18,8 +17,8 @@ class OriginalHCO(Optimizer):
         2. https://www.nature.com/articles/s41598-022-25031-6
 
     Notes:
-        1. Kinda similar to PSO algorithm. Just the concepts of nature-inspired animals are difference
-        2. Matlab code different to the paper
+        1. This algorithm shares some similarities with the PSO algorithm (equations)
+        2. The implementation of Matlab code is kinda different to the paper
 
     Hyper-parameters should fine-tune in approximate range to get faster convergence toward the global optimum:
         + w (float): (0, 1.) - weight factor for probability of fitness selection, default=0.65
@@ -96,7 +95,7 @@ class OriginalHCO(Optimizer):
                         self.pop[idx] = sol
                         break
         self.vec = np.random.rand(self.pop_size, self.problem.n_dims)
-        self.pop_p = deepcopy(self.pop)
+        self.pop_p = self.pop.copy()
 
     def evolve(self, epoch):
         """
@@ -131,4 +130,4 @@ class OriginalHCO(Optimizer):
             if self.compare_agent(pop_new[idx], self.pop[idx]):
                 self.pop[idx] = pop_new[idx]
                 if self.compare_agent(pop_new[idx], self.pop_p[idx]):
-                    self.pop_p[idx] = deepcopy(pop_new[idx])
+                    self.pop_p[idx] = pop_new[idx].copy()

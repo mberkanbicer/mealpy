@@ -5,7 +5,6 @@
 # --------------------------------------------------%
 
 import numpy as np
-from copy import deepcopy
 from mealpy.optimizer import Optimizer
 
 
@@ -13,10 +12,9 @@ class BaseSSA(Optimizer):
     """
     The developed version: Sparrow Search Algorithm (SSA)
 
-    Notes
-    ~~~~~
-    + First, the population is sorted to find g-best and g-worst
-    + In Eq. 4, the np.random.normal() gaussian distribution is used instead of A+ and L
+    Notes:
+        + First, the population is sorted to find g-best and g-worst
+        + In Eq. 4, the np.random.normal() gaussian distribution is used instead of A+ and L
 
     Hyper-parameters should fine-tune in approximate range to get faster convergence toward the global optimum:
         + ST (float): ST in [0.5, 1.0], safety threshold value, default = 0.8
@@ -73,16 +71,7 @@ class BaseSSA(Optimizer):
         self.n2 = int(self.SD * self.pop_size)
         self.sort_flag = True
 
-    def amend_position(self, position=None, lb=None, ub=None):
-        """
-        Args:
-            position: vector position (location) of the solution.
-            lb: list of lower bound values
-            ub: list of upper bound values
-
-        Returns:
-            Amended position (make the position is in bound)
-        """
+    def bounded_position(self, position=None, lb=None, ub=None):
         condition = np.logical_and(lb <= position, position <= ub)
         pos_rand = np.random.uniform(lb, ub)
         return np.where(condition, position, pos_rand)
@@ -124,7 +113,7 @@ class BaseSSA(Optimizer):
             self.pop = self.greedy_selection_population(self.pop, pop_new)
         self.pop, best, worst = self.get_special_solutions(self.pop, best=1, worst=1)
         g_best, g_worst = best[0], worst[0]
-        pop2 = deepcopy(self.pop[self.n2:])
+        pop2 = self.pop[self.n2:]
         child = []
         for idx in range(0, len(pop2)):
             #  Using equation (5) update the sparrow’s location;

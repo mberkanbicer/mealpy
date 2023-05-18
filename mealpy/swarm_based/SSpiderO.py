@@ -5,7 +5,6 @@
 # --------------------------------------------------%
 
 import numpy as np
-from copy import deepcopy
 from mealpy.optimizer import Optimizer
 
 
@@ -99,19 +98,7 @@ class OriginalSSpiderO(Optimizer):
         weight = 0.0
         return [position, target, weight]
 
-    def amend_position(self, position=None, lb=None, ub=None):
-        """
-        Depend on what kind of problem are we trying to solve, there will be an different amend_position
-        function to rebound the position of agent into the valid range.
-
-        Args:
-            position: vector position (location) of the solution.
-            lb: list of lower bound values
-            ub: list of upper bound values
-
-        Returns:
-            Amended position (make the position is in bound)
-        """
+    def bounded_position(self, position=None, lb=None, ub=None):
         return np.where(np.logical_and(lb <= position, position <= ub), position, np.random.uniform(lb, ub))
 
     def move_females__(self, epoch=None):
@@ -262,7 +249,7 @@ class OriginalSSpiderO(Optimizer):
         pop_child = self.get_sorted_strim_population(pop_child, n_child)
         for i in range(0, n_child):
             if self.compare_agent(pop_child[i], pop[i]):
-                pop[i] = deepcopy(pop_child[i])
+                pop[i] = pop_child[i].copy()
         return pop
 
     def recalculate_weights__(self, pop=None):

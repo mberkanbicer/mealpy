@@ -5,7 +5,6 @@
 # --------------------------------------------------%
 
 import numpy as np
-from copy import deepcopy
 from mealpy.optimizer import Optimizer
 
 
@@ -125,19 +124,7 @@ class OriginalSCA(BaseSCA):
         super().__init__(epoch, pop_size, **kwargs)
         self.sort_flag = False
 
-    def amend_position(self, position=None, lb=None, ub=None):
-        """
-        Depend on what kind of problem are we trying to solve, there will be an different amend_position
-        function to rebound the position of agent into the valid range.
-
-        Args:
-            position: vector position (location) of the solution.
-            lb: list of lower bound values
-            ub: list of upper bound values
-
-        Returns:
-            Amended position (make the position is in bound)
-        """
+    def bounded_position(self, position=None, lb=None, ub=None):
         return np.where(np.logical_and(lb <= position, position <= ub), position, np.random.uniform(lb, ub))
 
     def evolve(self, epoch):
@@ -152,7 +139,7 @@ class OriginalSCA(BaseSCA):
             # Eq 3.4, r1 decreases linearly from a to 0
             a = 2.0
             r1 = a - (epoch + 1) * (a / self.epoch)
-            pos_new = deepcopy(self.pop[idx][self.ID_POS])
+            pos_new = self.pop[idx][self.ID_POS].copy()
             for j in range(self.problem.n_dims):  # j-th dimension
                 # Update r2, r3, and r4 for Eq. (3.3)
                 r2 = 2 * np.pi * np.random.uniform()
@@ -274,7 +261,7 @@ class QleSCA(BaseSCA):
         q_table = QTable(n_states=9, n_actions=9)
         return [position, target, q_table]
 
-    def amend_position(self, position=None, lb=None, ub=None):
+    def bounded_position(self, position=None, lb=None, ub=None):
         return np.where(np.logical_and(lb <= position, position <= ub), position, np.random.uniform(lb, ub))
 
     def density__(self, pop):
@@ -304,7 +291,7 @@ class QleSCA(BaseSCA):
             epoch (int): The current iteration
         """
         for idx in range(0, self.pop_size):
-            agent = deepcopy(self.pop[idx])
+            agent = self.pop[idx].copy()
             ## Step 3: State computation
             den = self.density__(self.pop)
             dis = self.distance__(self.g_best, self.pop, self.problem.lb, self.problem.ub)

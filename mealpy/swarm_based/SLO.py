@@ -6,7 +6,6 @@
 
 import numpy as np
 from math import gamma
-from copy import deepcopy
 from mealpy.optimizer import Optimizer
 
 
@@ -18,9 +17,8 @@ class OriginalSLO(Optimizer):
         1. https://www.researchgate.net/publication/333516932_Sea_Lion_Optimization_Algorithm
         2. https://doi.org/10.14569/IJACSA.2019.0100548
 
-    Notes
-    ~~~~~
-    + There are some unclear equations and parameters in the original paper 
+    Notes:
+        + There are some unclear equations and parameters in the original paper
 
     Examples
     ~~~~~~~~
@@ -60,16 +58,7 @@ class OriginalSLO(Optimizer):
         self.set_parameters(["epoch", "pop_size"])
         self.sort_flag = False
 
-    def amend_position(self, position=None, lb=None, ub=None):
-        """
-        Args:
-            position: vector position (location) of the solution.
-            lb: list of lower bound values
-            ub: list of upper bound values
-
-        Returns:
-            Amended position (make the position is in bound)
-        """
+    def bounded_position(self, position=None, lb=None, ub=None):
         condition = np.logical_and(lb <= position, position <= ub)
         pos_rand = np.random.uniform(lb, ub)
         return np.where(condition, position, pos_rand)
@@ -207,7 +196,7 @@ class ModifiedSLO(Optimizer):
 
         pop_new = []
         for idx in range(0, self.pop_size):
-            agent = deepcopy(self.pop[idx])
+            agent = self.pop[idx].copy()
             if SP_leader >= 0.6:
                 pos_new = np.cos(2 * np.pi * np.random.normal(0, 1)) * \
                           np.abs(self.g_best[self.ID_POS] - self.pop[idx][self.ID_POS]) + self.g_best[self.ID_POS]
@@ -227,10 +216,10 @@ class ModifiedSLO(Optimizer):
 
         for idx in range(0, self.pop_size):
             if self.compare_agent(pop_new[idx], self.pop[idx]):
-                self.pop[idx] = deepcopy(pop_new[idx])
+                self.pop[idx] = pop_new[idx].copy()
                 if self.compare_agent(pop_new[idx], [None, self.pop[idx][self.ID_LOC_FIT]]):
-                    self.pop[idx][self.ID_LOC_POS] = deepcopy(pop_new[idx][self.ID_POS])
-                    self.pop[idx][self.ID_LOC_FIT] = deepcopy(pop_new[idx][self.ID_TAR])
+                    self.pop[idx][self.ID_LOC_POS] = pop_new[idx][self.ID_POS].copy()
+                    self.pop[idx][self.ID_LOC_FIT] = pop_new[idx][self.ID_TAR].copy()
 
 
 class ImprovedSLO(ModifiedSLO):
@@ -296,7 +285,7 @@ class ImprovedSLO(ModifiedSLO):
 
         pop_new = []
         for idx in range(0, self.pop_size):
-            agent = deepcopy(self.pop[idx])
+            agent = self.pop[idx].copy()
             if SP_leader < 0.5:
                 if c < 1:  # Exploitation improved by historical movement + global best affect
                     # pos_new = g_best[self.ID_POS] - c * np.abs(2 * rand() * g_best[self.ID_POS] - pop[i][self.ID_POS])
@@ -328,7 +317,7 @@ class ImprovedSLO(ModifiedSLO):
 
         for idx in range(0, self.pop_size):
             if self.compare_agent(pop_new[idx], self.pop[idx]):
-                self.pop[idx] = deepcopy(pop_new[idx])
+                self.pop[idx] = pop_new[idx].copy()
                 if self.compare_agent(pop_new[idx], [None, self.pop[idx][self.ID_LOC_FIT]]):
-                    self.pop[idx][self.ID_LOC_POS] = deepcopy(pop_new[idx][self.ID_POS])
-                    self.pop[idx][self.ID_LOC_FIT] = deepcopy(pop_new[idx][self.ID_TAR])
+                    self.pop[idx][self.ID_LOC_POS] = pop_new[idx][self.ID_POS].copy()
+                    self.pop[idx][self.ID_LOC_FIT] = pop_new[idx][self.ID_TAR].copy()

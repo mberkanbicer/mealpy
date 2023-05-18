@@ -1,10 +1,14 @@
 
-<p align="center"><img src="https://thieu1995.github.io/post/2022-04/19-mealpy-tutorials/mealpy1.png" alt="MEALPY"/></p>
+<p align="center">
+<img style="height:400px;" 
+src="https://thieu1995.github.io/post/2022-04/19-mealpy-tutorials/mealpy5-nobg.png" 
+alt="MEALPY"/>
+</p>
 
 ---
 
 
-[![GitHub release](https://img.shields.io/badge/release-2.5.2-yellow.svg)](https://github.com/thieu1995/mealpy/releases)
+[![GitHub release](https://img.shields.io/badge/release-2.5.3-yellow.svg)](https://github.com/thieu1995/mealpy/releases)
 [![Wheel](https://img.shields.io/pypi/wheel/gensim.svg)](https://pypi.python.org/pypi/mealpy) 
 [![PyPI version](https://badge.fury.io/py/mealpy.svg)](https://badge.fury.io/py/mealpy)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/mealpy.svg)
@@ -27,7 +31,7 @@ MEALPY is the largest python library for most of the cutting-edge nature-inspire
 approximate optimization.
 
 * **Free software:** GNU General Public License (GPL) V3 license
-* **Total algorithms**: 172 (102 original, 45 official variants, 25 developed variants)
+* **Total algorithms**: 174 (102 original, 45 official variants, 27 developed variants)
 * **Documentation:** https://mealpy.readthedocs.io/en/latest/
 * **Python versions:** 3.7.x, 3.8.x, 3.9.x, 3.10.x, 3.11.x
 * **Dependencies:** numpy, scipy, pandas, matplotlib
@@ -51,7 +55,7 @@ Our goals are to implement all of the classical as well as the state-of-the-art 
 ### Install with pip
 Install the [current PyPI release](https://pypi.python.org/pypi/mealpy):
 ```sh 
-$ pip install mealpy==2.5.2
+$ pip install mealpy==2.5.3
 ```
 
 ### Install from source
@@ -184,11 +188,17 @@ paras_bbo_grid = {
     "p_m": [0.01, 0.02, 0.05, 0.1, 0.15, 0.2]
 }
 
+term = {
+  "max_fe": 10000
+}
+
 if __name__ == "__main__":
     model = BBO.BaseBBO()
 
     tuner = Tuner(model, paras_bbo_grid)
-    tuner.execute(problem=problem, n_trials=10, mode="parallel", n_workers=4)
+    tuner.execute(problem=problem, termination=term, n_trials=5, n_jobs=5, mode="thread", n_workers=4, verbose=True)
+    ## Solve this problem 5 times (n_trials) using 5 processes (n_jobs), each process will handle 1 trial. 
+    ## The mode to run the solver is thread (mode), we will calculate the fitness of 4 solutions (n_workers) at the same time 
 
     print(tuner.best_score)
     print(tuner.best_params)
@@ -267,12 +277,16 @@ model1 = BBO.BaseBBO(epoch=10, pop_size=50)
 model2 = BBO.OriginalBBO(epoch=10, pop_size=50)
 model3 = DE.BaseDE(epoch=10, pop_size=50)
 
+## Define termination if needed
+term = {
+    "max_fe": 10000
+}
 
 ## Define and run Multitask
-
 if __name__ == "__main__":
-    multitask = Multitask(algorithms=(model1, model2, model3), problems=(p1, p2, p3))
-    multitask.execute(n_trials=3, mode="parallel", n_workers=6, save_path="history", save_as="csv", save_convergence=True, verbose=True)
+    multitask = Multitask(algorithms=(model1, model2, model3), problems=(p1, p2, p3), terminations=(term, ), modes=("thread", ))
+    # default modes = "single", default termination = epoch (as defined in problem dictionary)
+    multitask.execute(n_trials=5, n_jobs=5, save_path="history", save_as="csv", save_convergence=False, verbose=False)
     
     ## Check the directory: history/, you will see list of .csv result files
 ```
@@ -359,15 +373,12 @@ We share lots of information, questions, and answers there. You will get more su
 If you are using mealpy in your project, we would appreciate citations:
 
 ```bibtex 
-@software{nguyen_van_thieu_2022_6684223,
-  author       = {Nguyen Van Thieu and Seyedali Mirjalili},
-  title        = {{MEALPY: a Framework of The State-of-The-Art Meta-Heuristic Algorithms in Python}},
-  month        = jun,
-  year         = 2022,
-  publisher    = {Zenodo},
-  version      = {v2.4.2},
-  doi          = {10.5281/zenodo.6684223},
-  url          = {https://doi.org/10.5281/zenodo.6684223}
+@article{van2023mealpy,
+  title={MEALPY: An open-source library for latest meta-heuristic algorithms in Python},
+  author={Van Thieu, Nguyen and Mirjalili, Seyedali},
+  journal={Journal of Systems Architecture},
+  year={2023},
+  publisher={Elsevier}
 }
 
 @article{van2023groundwater,
@@ -456,7 +467,7 @@ If you are using mealpy in your project, we would appreciate citations:
     + Math-based: Idea from mathematical form or mathematical law such as sin-cosin 
     + Music-based: Idea from music instrument
 
-* Difficulty - Difficulty Level (Personal Opinion): Objective observation from author. Depend on the number of 
+* Difficulty - Difficulty Level (Personal Opinion): **Objective observation from author**. Depend on the number of 
   parameters, number of equations, the original ideas, time spend for coding, source lines of code (SLOC).
     + Easy: A few paras, few equations, SLOC very short
     + Medium: more equations than Easy level, SLOC longer than Easy level
@@ -1083,7 +1094,7 @@ If you are using mealpy in your project, we would appreciate citations:
   * **OriginalWHO**: Amali, D., & Dinakaran, M. (2019). Wildebeest herd optimization: A new global optimization algorithm inspired by wildebeest herding behaviour. Journal of Intelligent & Fuzzy Systems, (Preprint), 1-14.
 
 * **WDO - Wind Driven Optimization** 
-  * **OriginalWDO**: Bayraktar, Z., Komurcu, M., & Werner, D. H. (2010, July). Wind Driven Optimization (WDO): A novel nature-inspired optimization algorithm and its application to electromagnetics. In 2010 IEEE antennas and propagation society international symposium (pp. 1-4). IEEE.
+  * **OriginalWDO**: Bayraktar, Z., Komurcu, M., Bossard, J.A. and Werner, D.H., 2013. The wind driven optimization technique and its application in electromagnetics. IEEE transactions on antennas and propagation, 61(5), pp.2745-2757.
 
 
 ### X

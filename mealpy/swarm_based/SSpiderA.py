@@ -5,7 +5,6 @@
 # --------------------------------------------------%
 
 import numpy as np
-from copy import deepcopy
 from scipy.spatial.distance import cdist
 from mealpy.optimizer import Optimizer
 
@@ -18,10 +17,9 @@ class OriginalSSpiderA(Optimizer):
         1. https://doi.org/10.1016/j.asoc.2015.02.014
         2. https://github.com/James-Yu/SocialSpiderAlgorithm  (Modified this version)
 
-    Notes
-    ~~~~~
-    + The version on above github is very slow convergence
-    + Changes the idea of intensity, which one has better intensity, others will move toward to it
+    Notes:
+        + The version of the algorithm available on the GitHub repository has a slow convergence rate.
+        + Changes the idea of intensity, which one has better intensity, others will move toward to it
 
     Hyper-parameters should fine-tune in approximate range to get faster convergence toward the global optimum:
         + r_a (float): the rate of vibration attenuation when propagating over the spider web, default=1.0
@@ -103,7 +101,7 @@ class OriginalSSpiderA(Optimizer):
         position = self.amend_position(pos, lb, ub)
         target = self.get_target_wrapper(position)
         intensity = np.log(1. / (abs(target[self.ID_FIT]) + self.EPSILON) + 1)
-        target_position = deepcopy(position)
+        target_position = position.copy()
         previous_movement_vector = np.zeros(self.problem.n_dims)
         dimension_mask = np.zeros(self.problem.n_dims)
         return [position, target, intensity, target_position, previous_movement_vector, dimension_mask]
@@ -118,15 +116,13 @@ class OriginalSSpiderA(Optimizer):
         all_pos = np.array([it[self.ID_POS] for it in self.pop])  ## Matrix (pop_size, problem_size)
         base_distance = np.mean(np.std(all_pos, axis=0))  ## Number
         dist = cdist(all_pos, all_pos, 'euclidean')
-
         intensity_source = np.array([it[self.ID_INT] for it in self.pop])
         intensity_attenuation = np.exp(-dist / (base_distance * self.r_a))  ## vector (pop_size)
         intensity_receive = np.dot(np.reshape(intensity_source, (1, self.pop_size)), intensity_attenuation)  ## vector (1, pop_size)
         id_best_intennsity = np.argmax(intensity_receive)
-
         pop_new = []
         for idx in range(0, self.pop_size):
-            agent = deepcopy(self.pop[idx])
+            agent = self.pop[idx].copy()
             if self.pop[id_best_intennsity][self.ID_INT] > self.pop[idx][self.ID_INT]:
                 agent[self.ID_TARGET_POS] = self.pop[id_best_intennsity][self.ID_TARGET_POS]
             if np.random.uniform() > self.p_c:  ## changing mask

@@ -5,7 +5,6 @@
 # --------------------------------------------------%
 
 import numpy as np
-from copy import deepcopy
 from mealpy.optimizer import Optimizer
 
 
@@ -70,7 +69,7 @@ class BaseFBIO(Optimizer):
             n_change = np.random.randint(0, self.problem.n_dims)
             nb1, nb2 = np.random.choice(list(set(range(0, self.pop_size)) - {idx}), 2, replace=False)
             # Eq.(2) in FBI Inspired Meta - Optimization
-            pos_a = deepcopy(self.pop[idx][self.ID_POS])
+            pos_a = self.pop[idx][self.ID_POS].copy()
             pos_a[n_change] = self.pop[idx][self.ID_POS][n_change] + np.random.normal() * \
                 (self.pop[idx][self.ID_POS][n_change] - (self.pop[nb1][self.ID_POS][n_change] + self.pop[nb2][self.ID_POS][n_change]) / 2)
             pos_a = self.amend_position(pos_a, self.problem.lb, self.problem.ub)
@@ -185,19 +184,7 @@ class OriginalFBIO(BaseFBIO):
         """
         super().__init__(epoch, pop_size, **kwargs)
 
-    def amend_position(self, position=None, lb=None, ub=None):
-        """
-        Depend on what kind of problem are we trying to solve, there will be an different amend_position
-        function to rebound the position of agent into the valid range.
-
-        Args:
-            position: vector position (location) of the solution.
-            lb: list of lower bound values
-            ub: list of upper bound values
-
-        Returns:
-            Amended position (make the position is in bound)
-        """
+    def bounded_position(self, position=None, lb=None, ub=None):
         rand_pos = np.random.uniform(lb, ub)
         condition = np.logical_and(lb <= position, position <= ub)
         return np.where(condition, position, rand_pos)
@@ -216,7 +203,7 @@ class OriginalFBIO(BaseFBIO):
             n_change = np.random.randint(0, self.problem.n_dims)
             nb1, nb2 = np.random.choice(list(set(range(0, self.pop_size)) - {idx}), 2, replace=False)
             # Eq.(2) in FBI Inspired Meta - Optimization
-            pos_a = deepcopy(self.pop[idx][self.ID_POS])
+            pos_a = self.pop[idx][self.ID_POS].copy()
             pos_a[n_change] = self.pop[idx][self.ID_POS][n_change] + (np.random.uniform() - 0.5) * 2 * \
                 (self.pop[idx][self.ID_POS][n_change] - (self.pop[nb1][self.ID_POS][n_change] + self.pop[nb2][self.ID_POS][n_change]) / 2)
             ## Not good move here, change only 1 variable but check bound of all variable in solution
@@ -236,7 +223,7 @@ class OriginalFBIO(BaseFBIO):
         for idx in range(0, self.pop_size):
             if np.random.uniform() > prob[idx]:
                 r1, r2, r3 = np.random.choice(list(set(range(0, self.pop_size)) - {idx}), 3, replace=False)
-                pos_a = deepcopy(self.pop[idx][self.ID_POS])
+                pos_a = self.pop[idx][self.ID_POS].copy()
                 Rnd = np.floor(np.random.uniform() * self.problem.n_dims) + 1
 
                 for j in range(0, self.problem.n_dims):
@@ -261,7 +248,7 @@ class OriginalFBIO(BaseFBIO):
         ## Step B1
         pop_new = []
         for idx in range(0, self.pop_size):
-            pos_b = deepcopy(self.pop[idx][self.ID_POS])
+            pos_b = self.pop[idx][self.ID_POS].copy()
             for j in range(0, self.problem.n_dims):
                 ### Eq.(6) in FBI Inspired Meta-Optimization
                 pos_b[j] = np.random.uniform() * self.pop[idx][self.ID_POS][j] + \

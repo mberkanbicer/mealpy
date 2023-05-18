@@ -5,7 +5,6 @@
 # --------------------------------------------------%
 
 import numpy as np
-from copy import deepcopy
 from mealpy.optimizer import Optimizer
 
 
@@ -66,19 +65,7 @@ class BaseSARO(Optimizer):
         else:
             self.pop = self.pop + self.create_population(self.pop_size)
 
-    def amend_position(self, position=None, lb=None, ub=None):
-        """
-        Depend on what kind of problem are we trying to solve, there will be an different amend_position
-        function to rebound the position of agent into the valid range.
-
-        Args:
-            position: vector position (location) of the solution.
-            lb: list of lower bound values
-            ub: list of upper bound values
-
-        Returns:
-            Amended position (make the position is in bound)
-        """
+    def bounded_position(self, position=None, lb=None, ub=None):
         condition = np.logical_and(lb <= position, position <= ub)
         rand_pos = np.random.uniform(lb, ub)
         return np.where(condition, position, rand_pos)
@@ -90,8 +77,8 @@ class BaseSARO(Optimizer):
         Args:
             epoch (int): The current iteration
         """
-        pop_x = deepcopy(self.pop[:self.pop_size])
-        pop_m = deepcopy(self.pop[self.pop_size:])
+        pop_x = self.pop[:self.pop_size].copy()
+        pop_m = self.pop[self.pop_size:].copy()
 
         pop_new = []
         for idx in range(self.pop_size):
@@ -111,13 +98,13 @@ class BaseSARO(Optimizer):
         pop_new = self.update_target_wrapper_population(pop_new)
         for idx in range(self.pop_size):
             if self.compare_agent(pop_new[idx], pop_x[idx]):
-                pop_m[np.random.randint(0, self.pop_size)] = deepcopy(pop_x[idx])
-                pop_x[idx] = deepcopy(pop_new[idx])
+                pop_m[np.random.randint(0, self.pop_size)] = pop_x[idx].copy()
+                pop_x[idx] = pop_new[idx].copy()
                 self.dyn_USN[idx] = 0
             else:
                 self.dyn_USN[idx] += 1
 
-        pop = deepcopy(pop_x) + deepcopy(pop_m)
+        pop = pop_x.copy() + pop_m.copy()
         pop_new = []
         for idx in range(self.pop_size):
             ## Individual phase
@@ -131,8 +118,8 @@ class BaseSARO(Optimizer):
         pop_new = self.update_target_wrapper_population(pop_new)
         for idx in range(0, self.pop_size):
             if self.compare_agent(pop_new[idx], pop_x[idx]):
-                pop_m[np.random.randint(0, self.pop_size)] = deepcopy(pop_x[idx])
-                pop_x[idx] = deepcopy(pop_new[idx])
+                pop_m[np.random.randint(0, self.pop_size)] = pop_x[idx].copy()
+                pop_x[idx] = pop_new[idx].copy()
                 self.dyn_USN[idx] = 0
             else:
                 self.dyn_USN[idx] += 1
@@ -200,8 +187,8 @@ class OriginalSARO(BaseSARO):
         Args:
             epoch (int): The current iteration
         """
-        pop_x = deepcopy(self.pop[:self.pop_size])
-        pop_m = deepcopy(self.pop[self.pop_size:])
+        pop_x = self.pop[:self.pop_size].copy()
+        pop_m = self.pop[self.pop_size:].copy()
 
         pop_new = []
         for idx in range(self.pop_size):
@@ -211,7 +198,7 @@ class OriginalSARO(BaseSARO):
             j_rand = np.random.randint(0, self.problem.n_dims)
             r1 = np.random.uniform(-1, 1)
 
-            pos_new = deepcopy(pop_x[idx][self.ID_POS])
+            pos_new = pop_x[idx][self.ID_POS].copy()
             for j in range(0, self.problem.n_dims):
                 if np.random.uniform() < self.se or j == j_rand:
                     if self.compare_agent(self.pop[k], pop_x[idx]):
@@ -229,14 +216,14 @@ class OriginalSARO(BaseSARO):
         pop_new = self.update_target_wrapper_population(pop_new)
         for idx in range(0, self.pop_size):
             if self.compare_agent(pop_new[idx], pop_x[idx]):
-                pop_m[np.random.randint(0, self.pop_size)] = deepcopy(pop_x[idx])
-                pop_x[idx] = deepcopy(pop_new[idx])
+                pop_m[np.random.randint(0, self.pop_size)] = pop_x[idx].copy()
+                pop_x[idx] = pop_new[idx].copy()
                 self.dyn_USN[idx] = 0
             else:
                 self.dyn_USN[idx] += 1
 
         ## Individual phase
-        pop = deepcopy(pop_x) + deepcopy(pop_m)
+        pop = pop_x.copy() + pop_m.copy()
         pop_new = []
         for idx in range(0, self.pop_size):
             k, m = np.random.choice(list(set(range(0, 2 * self.pop_size)) - {idx}), 2, replace=False)
@@ -254,7 +241,7 @@ class OriginalSARO(BaseSARO):
         for idx in range(0, self.pop_size):
             if self.compare_agent(pop_new[idx], pop_x[idx]):
                 pop_m[np.random.randint(0, self.pop_size)] = pop_x[idx]
-                pop_x[idx] = deepcopy(pop_new[idx])
+                pop_x[idx] = pop_new[idx].copy()
                 self.dyn_USN[idx] = 0
             else:
                 self.dyn_USN[idx] += 1
