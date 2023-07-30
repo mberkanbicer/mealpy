@@ -1,10 +1,10 @@
 #!/usr/bin/env python
-# Created by "Thieu" at 09:35, 17/03/2022 ----------%                                                                               
+# Created by "Thieu" at 08:22, 17/06/2023 ----------%                                                                               
 #       Email: nguyenthieu2102@gmail.com            %                                                    
 #       Github: https://github.com/thieu1995        %                         
 # --------------------------------------------------%
 
-from mealpy.evolutionary_based import DE
+from mealpy.math_based import TS
 from mealpy.optimizer import Optimizer
 import numpy as np
 import pytest
@@ -20,17 +20,13 @@ def problem():
         "lb": [-10, -10, -10, -10, -10],
         "ub": [10, 10, 10, 10, 10],
         "minmax": "min",
-        "log_to": None,
     }
     return problem
 
 
-def test_DE_results(problem):
+def test_TS_results(problem):
     models = [
-        DE.BaseDE(epoch=10, pop_size=50, wf=0.1, cr=0.9, strategy=5),
-        DE.JADE(epoch=20, pop_size=50, miu_f=0.5, miu_cr=0.5, pt=0.1, ap=0.1),
-        DE.SADE(epoch=20, pop_size=50),
-        DE.SAP_DE(epoch=20, pop_size=50, branch="ABS"),
+        TS.OriginalTS(epoch=100, pop_size=2, tabu_size=5, neighbour_size=10, perturbation_scale=0.05),
     ]
     for model in models:
         best_position, best_fitness = model.solve(problem)

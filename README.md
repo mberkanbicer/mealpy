@@ -31,7 +31,7 @@ MEALPY is the largest python library for most of the cutting-edge nature-inspire
 approximate optimization.
 
 * **Free software:** GNU General Public License (GPL) V3 license
-* **Total algorithms**: 174 (102 original, 45 official variants, 27 developed variants)
+* **Total algorithms**: 175 (102 original, 46 official variants, 27 developed variants)
 * **Documentation:** https://mealpy.readthedocs.io/en/latest/
 * **Python versions:** 3.7.x, 3.8.x, 3.9.x, 3.10.x, 3.11.x
 * **Dependencies:** numpy, scipy, pandas, matplotlib
@@ -52,14 +52,19 @@ Our goals are to implement all of the classical as well as the state-of-the-art 
 
 # Installation
 
-### Install with pip
+### Install the stable (latest) version
 Install the [current PyPI release](https://pypi.python.org/pypi/mealpy):
 ```sh 
 $ pip install mealpy==2.5.3
 ```
 
-### Install from source
-In case you want to install directly from the source code, use:
+### Install the alpha/beta version
+```sh 
+$ pip install mealpy==2.5.4a6
+```
+
+### Install the pre-release version
+You can install pre-release directly from the source code:
 ```sh 
 $ git clone https://github.com/thieu1995/mealpy.git
 $ cd mealpy
@@ -75,6 +80,9 @@ After installation, you can import Mealpy as any other Python module:
 $ python
 >>> import mealpy
 >>> mealpy.__version__
+
+>>> print(mealpy.get_all_optimizers())
+>>> model = mealpy.get_optimizer_by_name("OriginalWOA")(epoch=100, pop_size=50)
 ```
 
 Let's go through a basic and advanced example.
@@ -359,14 +367,14 @@ All visualization examples: [Link](https://mealpy.readthedocs.io/en/latest/pages
 * Issue tracker: https://github.com/thieu1995/mealpy/issues
 * Notable changes log: https://github.com/thieu1995/mealpy/blob/master/ChangeLog.md
 * Examples with different meapy version: https://github.com/thieu1995/mealpy/blob/master/EXAMPLES.md
+* Official chat/support group: https://t.me/+fRVCJGuGJg1mNDg1
 
 * This project also related to our another projects which are "meta-heuristics" and "neural-network", check it here
     * https://github.com/thieu1995/opfunu
     * https://github.com/thieu1995/metaheuristics
     * https://github.com/aiir-team
-
-**Want to have an instant assistant? Join our telegram community at [link](https://t.me/+fRVCJGuGJg1mNDg1)**
-We share lots of information, questions, and answers there. You will get more support and knowledge there.
+    * https://github.com/mafese
+    * https://github.com/permetrics
 
 ### Cite Us
 
@@ -378,7 +386,8 @@ If you are using mealpy in your project, we would appreciate citations:
   author={Van Thieu, Nguyen and Mirjalili, Seyedali},
   journal={Journal of Systems Architecture},
   year={2023},
-  publisher={Elsevier}
+  publisher={Elsevier},
+  doi={10.1016/j.sysarc.2023.102871}
 }
 
 @article{van2023groundwater,
@@ -388,7 +397,8 @@ If you are using mealpy in your project, we would appreciate citations:
   volume={617},
   pages={129034},
   year={2023},
-  publisher={Elsevier}
+  publisher={Elsevier},
+  doi={10.1016/j.jhydrol.2022.129034}
 }
 ```
 
@@ -523,6 +533,7 @@ If you are using mealpy in your project, we would appreciate citations:
 | Swarm        | Social Spider Optimization                      | SSpiderO   | OriginalSSpiderO | 2018     | 4         | hard*          |
 | Swarm        | Grey Wolf Optimizer                             | GWO        | OriginalGWO      | 2014     | 2         | easy           |
 | Swarm        | -                                               | -          | RW_GWO           | 2019     | 2         | easy           |
+| Swarm        | -                                               | -          | IGWO             | 2017     | 4         | easy           |
 | Swarm        | Social Spider Algorithm                         | SSpiderA   | OriginalSSpiderA | 2015     | 5         | medium         |
 | Swarm        | Ant Lion Optimizer                              | ALO        | OriginalALO      | 2015     | 2         | easy           |
 | Swarm        | -                                               | -          | BaseALO          | -        | 2         | easy           |
@@ -568,7 +579,9 @@ If you are using mealpy in your project, we would appreciate citations:
 | Swarm        | Dwarf Mongoose Optimization Algorithm           | DMOA       | OriginalDMOA     | 2022     | 4         | medium         |
 | Swarm        | -                                               | -          | DevDMOA          | -        | 3         | medium         |
 | -            | -                                               | -          | -                | -        | -         | -              |
-| Physics      | Simulated Annealling                            | SA         | OriginalSA       | 1987     | 9         | medium         |
+| Physics      | Simulated Annealling                            | SA         | OriginalSA       | 1983     | 3         | easy           |
+| Physics      |                                                 |            | GaussianSA       | -        | 4         | easy           |
+| Physics      |                                                 |            | SwarmSA          | 1987     | 9         | medium         |
 | Physics      | Wind Driven Optimization                        | WDO        | OriginalWDO      | 2013     | 7         | easy           |
 | Physics      | Multi-Verse Optimizer                           | MVO        | OriginalMVO      | 2016     | 4         | easy           |
 | Physics      | -                                               | -          | BaseMVO          | -        | 4         | easy           |
@@ -852,6 +865,7 @@ If you are using mealpy in your project, we would appreciate citations:
   * **OriginalGWO**: Mirjalili, S., Mirjalili, S. M., & Lewis, A. (2014). Grey wolf optimizer. Advances in engineering software, 69, 46-61.
   * **RW_GWO**: Gupta, S., & Deep, K. (2019). A novel random walk grey wolf optimizer. Swarm and evolutionary computation, 44, 101-112.
   * **GWO_WOA**: Obadina, O. O., Thaha, M. A., Althoefer, K., & Shaheed, M. H. (2022). Dynamic characterization of a master–slave robotic manipulator using a hybrid grey wolf–whale optimization algorithm. Journal of Vibration and Control, 28(15-16), 1992-2003.
+  * **IGWO**: Kaveh, A. & Zakian, P.. (2018). Improved GWO algorithm for optimal design of truss structures. Engineering with Computers. 34. 10.1007/s00366-017-0567-1.
 
 * **GOA - Grasshopper Optimisation Algorithm** 
   * **OriginalGOA**: Saremi, S., Mirjalili, S., & Lewis, A. (2017). Grasshopper optimisation algorithm: theory and application. Advances in Engineering Software, 105, 30-47.
@@ -990,7 +1004,9 @@ If you are using mealpy in your project, we would appreciate citations:
 ### S
 
 * **SA - Simulated Annealling** 
-  * **OriginalSA**: . Van Laarhoven, P. J., & Aarts, E. H. (1987). Simulated annealing. In Simulated annealing: Theory and applications (pp. 7-15). Springer, Dordrecht.
+  **OriginalSA**: Kirkpatrick, S., Gelatt Jr, C. D., & Vecchi, M. P. (1983). Optimization by simulated annealing. science, 220(4598), 671-680.
+  **GaussianSA**: Van Laarhoven, P. J., Aarts, E. H., van Laarhoven, P. J., & Aarts, E. H. (1987). Simulated annealing (pp. 7-15). Springer Netherlands.
+  **SwarmSA**: My developed version
 
 * **SSpiderO - Social Spider Optimization** 
   * **OriginalSSpiderO**: Cuevas, E., Cienfuegos, M., ZaldíVar, D., & Pérez-Cisneros, M. (2013). A swarm optimization algorithm inspired in the behavior of the social-spider. Expert Systems with Applications, 40(16), 6374-6384.

@@ -21,7 +21,18 @@ Different versions of mealpy in terms of passing hyper-parameters. So please car
 + Add a "amend_position()" function in Optimizer class. This function will call two functions.
   + bounded_position() from optimizer. This means for optimizer level (get in valid range of position)
   + amend_position() from problem. This means for problem level (transform to the correct solution)
-
++ Fix bugs coefficients in GWO-based optimizers.
++ Fig bug self.epoch in SCSO optimizer.
++ Fix bug self.dyn_pop_size when pop_size is small value
++ Move SHADE-based optimizers from DE to SHADE module in evolutionary_based group
++ Add Improved Grey Wolf Optimization (IGWO) in GWO algorithm
++ Add Tabu Search (TS) to math-based group
++ Add get_all_optimizers() and get_optimizer_by_name() in Mealpy
++ Rename the OriginalSA to SwarmSA in SA optimizer
++ Add the OriginalSA and GaussianSA in SA optimizer
++ Update parameters in OriginalHC and SwarmHC
++ Update ParameterGrid class to produce the dict with same order as original input
++ Add export_figures() to Tuner class. It can draw the hyperparameter tuning process. 
 
 
 # Version 2.5.3
