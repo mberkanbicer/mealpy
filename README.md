@@ -206,8 +206,7 @@ import numpy as np
 
 # Our custom problem class
 class Squared(Problem):
-    def __init__(self, bounds=None, minmax="min", name="Squared", data=None, **kwargs):
-        self.name = name
+    def __init__(self, bounds=None, minmax="min", data=None, **kwargs):
         self.data = data 
         super().__init__(bounds, minmax, **kwargs)
 
@@ -332,7 +331,7 @@ class SvmOptimizedProblem(Problem):
     def obj_func(self, x):
         x_decoded = self.decode_solution(x)
         C_paras, kernel_paras = x_decoded["C_paras"], x_decoded["kernel_paras"]
-        degree, gamma, probability = x_decoded["degree_pras"], x_decoded["gamma_paras"], x_decoded["probability_paras"]
+        degree, gamma, probability = x_decoded["degree_paras"], x_decoded["gamma_paras"], x_decoded["probability_paras"]
 
         svc = SVC(C=C_paras, kernel=kernel_paras, degree=degree, 
                   gamma=gamma, probability=probability, random_state=1)
@@ -1145,8 +1144,7 @@ import numpy as np
 
 # Our custom problem class
 class Squared(Problem):
-    def __init__(self, bounds=None, minmax="min", name="Squared", data=None, **kwargs):
-        self.name = name
+    def __init__(self, bounds=None, minmax="min", data=None, **kwargs):
         self.data = data 
         super().__init__(bounds, minmax, **kwargs)
 

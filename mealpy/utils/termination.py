@@ -40,7 +40,7 @@ class Termination:
     >>>     return np.sum(solution**2)
     >>>
     >>> p1 = {
-    >>>     "bounds": FloatVar(n_vars=30, lb=(-10.,) * 30, ub=(10.,) * 30, name="C-params"),
+    >>>     "bounds": FloatVar(lb=(-10.,) * 30, ub=(10.,) * 30, name="C-params"),
     >>>     "minmax": "min",
     >>>     "obj_func": objective_function,
     >>>     "name": "Test Function"
@@ -110,7 +110,7 @@ class Termination:
             self.message = "Stopping criterion with maximum number of function evaluations (FE) occurred. End program!"
             return True
         # Check maximum time
-        if self.max_time is not None and current_time >= self.max_time:
+        if self.max_time is not None and current_time - self.start_time >= self.max_time:
             self.message = "Stopping criterion with maximum running time/time bound (TB) (seconds) occurred. End program!"
             return True
         # Check early stopping

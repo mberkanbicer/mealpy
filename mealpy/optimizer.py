@@ -424,21 +424,29 @@ class Optimizer:
         return [agent.copy() for agent in pop]
 
     @staticmethod
-    def get_sorted_population(pop: List[Agent], minmax: str = "min") -> List[Agent]:
+    def get_sorted_population(pop: List[Agent], minmax: str = "min", return_index: bool = False) -> List[Agent]:
         """
         Get sorted population based on type (minmax) of problem
 
         Args:
             pop: The population
             minmax: The type of the problem
+            return_index: Return the sorted index or not
 
         Returns:
             Sorted population (1st agent is the best, last agent is the worst
+            Sorted index (Optional)
         """
-        if minmax == "min":
-            return sorted(pop, key=lambda agent: agent.target.fitness)
+
+        list_fits = [agent.target.fitness for agent in pop]
+        indices = np.argsort(list_fits).tolist()
+        if minmax == "max":
+            indices = indices[::-1]
+        pop_new = [pop[idx] for idx in indices]
+        if return_index:
+            return pop_new, indices
         else:
-            return sorted(pop, key=lambda agent: agent.target.fitness, reverse=True)
+            return pop_new
 
     @staticmethod
     def get_best_agent(pop: List[Agent], minmax: str = "min") -> Agent:
@@ -624,7 +632,7 @@ class Optimizer:
             list_fitness = np.array(list_fitness).flatten()
         if list_fitness.ptp() == 0:
             return int(self.generator.integers(0, len(list_fitness)))
-        if np.any(list_fitness) < 0:
+        if np.any(list_fitness < 0):
             list_fitness = list_fitness - np.min(list_fitness)
         final_fitness = list_fitness
         if self.problem.minmax == "min":
